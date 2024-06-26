@@ -314,3 +314,103 @@ $action4 = {
 
     $wslBackupForm.ShowDialog()
 }
+
+
+
+
+
+
+
+
+
+
+
+$action4 = {
+    $wslBackupForm = New-Object System.Windows.Forms.Form
+    $wslBackupForm.Text = "WSL Backup"
+    $wslBackupForm.Size = New-Object System.Drawing.Size(500, 400)
+    $wslBackupForm.StartPosition = "CenterScreen"
+    $wslBackupForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+
+    $label = New-Object System.Windows.Forms.Label
+    $label.Location = New-Object System.Drawing.Point(10, 20)
+    $label.Size = New-Object System.Drawing.Size(480, 20)
+    $label.Text = "Select WSL Image to Backup:"
+    $label.ForeColor = [System.Drawing.Color]::White
+    $wslBackupForm.Controls.Add($label)
+
+    $panel = New-Object System.Windows.Forms.Panel
+    $panel.Location = New-Object System.Drawing.Point(10, 50)
+    $panel.Size = New-Object System.Drawing.Size(480, 150)
+    $panel.AutoScroll = $true
+    $wslBackupForm.Controls.Add($panel)
+
+    $label2 = New-Object System.Windows.Forms.Label
+    $label2.Location = New-Object System.Drawing.Point(10, 210)
+    $label2.Size = New-Object System.Drawing.Size(480, 20)
+    $label2.Text = "Enter backup name:"
+    $label2.ForeColor = [System.Drawing.Color]::White
+    $wslBackupForm.Controls.Add($label2)
+
+    $backupNameTextBox = New-Object System.Windows.Forms.TextBox
+    $backupNameTextBox.Location = New-Object System.Drawing.Point(10, 240)
+    $backupNameTextBox.Size = New-Object System.Drawing.Size(480, 20)
+    $wslBackupForm.Controls.Add($backupNameTextBox)
+
+    $executeButton = New-Object System.Windows.Forms.Button
+    $executeButton.Location = New-Object System.Drawing.Point(10, 270)
+    $executeButton.Size = New-Object System.Drawing.Size(480, 30)
+    $executeButton.Text = "Backup WSL Image"
+    $executeButton.BackColor = [System.Drawing.Color]::White
+    $executeButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $executeButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $executeButton.Add_Click({
+        $selectedImage = $panel.Controls | Where-Object { $_ -is [System.Windows.Forms.RadioButton] -and $_.Checked } | Select-Object -ExpandProperty Text
+        $backupName = $backupNameTextBox.Text.Trim()
+        if ($selectedImage -and $backupName) {
+            try {
+                $process = Start-Process -FilePath "wsl.exe" -ArgumentList "--export", $selectedImage, "C:\_WSL2\$backupName.tar" -NoNewWindow -PassThru -Wait
+                if ($process.ExitCode -eq 0) {
+                    [System.Windows.Forms.MessageBox]::Show("WSL Image $selectedImage backed up successfully to C:\_WSL2\$backupName.tar.", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                } else {
+                    [System.Windows.Forms.MessageBox]::Show("Failed to backup WSL Image. Exit code: " + $process.ExitCode, "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                }
+            }
+            catch {
+                [System.Windows.Forms.MessageBox]::Show("Error executing command: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+        } else {
+            [System.Windows.Forms.MessageBox]::Show("Please select a WSL image and enter a backup name.", "Missing Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+        }
+    })
+    $wslBackupForm.Controls.Add($executeButton)
+
+    $wslBackupForm.Add_Shown({
+        try {
+            $wslOutput = & wsl --list --quiet 2>&1 | Where-Object { $_ -ne "" }
+            if ($wslOutput) {
+                $yPosition = 10
+                foreach ($image in $wslOutput) {
+                    $radioButton = New-Object System.Windows.Forms.RadioButton
+                    $radioButton.Location = New-Object System.Drawing.Point(10, $yPosition)
+                    $radioButton.Size = New-Object System.Drawing.Size(460, 20)
+                    $radioButton.Text = $image.Trim()
+                    $radioButton.ForeColor = [System.Drawing.Color]::White
+                    $panel.Controls.Add($radioButton)
+                    $yPosition += 25
+                }
+                if ($panel.Controls.Count -gt 0) {
+                    $panel.Controls[0].Checked = $true
+                }
+            } else {
+                [System.Windows.Forms.MessageBox]::Show("No WSL images found.", "Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            }
+        }
+        catch {
+            $errorMessage = $_.Exception.Message
+            [System.Windows.Forms.MessageBox]::Show("Error retrieving WSL images: $errorMessage", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
+
+    $wslBackupForm.ShowDialog()
+}
