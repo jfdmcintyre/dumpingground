@@ -182,3 +182,40 @@ foreach ($label in $categoryLabels) {
 
 # Show the main form
 $mainForm.ShowDialog()
+
+
+$action4 = {
+    $passwordChangeForm = New-Object System.Windows.Forms.Form
+    $passwordChangeForm.Text = "Password Change"
+    $passwordChangeForm.Size = New-Object System.Drawing.Size(300, 150)
+    $passwordChangeForm.StartPosition = "CenterScreen"
+    $passwordChangeForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+
+    $label = New-Object System.Windows.Forms.Label
+    $label.Location = New-Object System.Drawing.Point(10, 20)
+    $label.Size = New-Object System.Drawing.Size(280, 40)
+    $label.Text = "Click the button below to reset the password for 'wsl2user' in the default WSL distribution."
+    $label.ForeColor = [System.Drawing.Color]::White
+    $label.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $passwordChangeForm.Controls.Add($label)
+
+    $resetButton = New-Object System.Windows.Forms.Button
+    $resetButton.Location = New-Object System.Drawing.Point(75, 70)
+    $resetButton.Size = New-Object System.Drawing.Size(150, 30)
+    $resetButton.Text = "Reset Password"
+    $resetButton.BackColor = [System.Drawing.Color]::White
+    $resetButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $resetButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $resetButton.Add_Click({
+        try {
+            Start-Process -FilePath "cmd.exe" -ArgumentList "/c wsl -u root passwd wsl2user" -NoNewWindow
+            [System.Windows.Forms.MessageBox]::Show("Password reset process started. Please follow the prompts in the new command window.", "Password Reset", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("Error starting password reset process: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
+    $passwordChangeForm.Controls.Add($resetButton)
+
+    $passwordChangeForm.ShowDialog()
+}
