@@ -219,3 +219,98 @@ $action4 = {
 
     $passwordChangeForm.ShowDialog()
 }
+
+
+
+
+
+
+$action4 = {
+    $wslBackupForm = New-Object System.Windows.Forms.Form
+    $wslBackupForm.Text = "WSL Backup"
+    $wslBackupForm.Size = New-Object System.Drawing.Size(500, 400)
+    $wslBackupForm.StartPosition = "CenterScreen"
+    $wslBackupForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+
+    $label = New-Object System.Windows.Forms.Label
+    $label.Location = New-Object System.Drawing.Point(10, 20)
+    $label.Size = New-Object System.Drawing.Size(480, 20)
+    $label.Text = "Available WSL Images:"
+    $label.ForeColor = [System.Drawing.Color]::White
+    $wslBackupForm.Controls.Add($label)
+
+    $textBox = New-Object System.Windows.Forms.TextBox
+    $textBox.Location = New-Object System.Drawing.Point(10, 50)
+    $textBox.Size = New-Object System.Drawing.Size(480, 150)
+    $textBox.Multiline = $true
+    $textBox.ScrollBars = "Vertical"
+    $textBox.ReadOnly = $true
+    $textBox.Font = New-Object System.Drawing.Font("Consolas", 10)
+    $textBox.ForeColor = [System.Drawing.Color]::White
+    $textBox.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 109)
+    $wslBackupForm.Controls.Add($textBox)
+
+    $label2 = New-Object System.Windows.Forms.Label
+    $label2.Location = New-Object System.Drawing.Point(10, 210)
+    $label2.Size = New-Object System.Drawing.Size(480, 20)
+    $label2.Text = "Enter the name of the WSL image to backup:"
+    $label2.ForeColor = [System.Drawing.Color]::White
+    $wslBackupForm.Controls.Add($label2)
+
+    $imageNameTextBox = New-Object System.Windows.Forms.TextBox
+    $imageNameTextBox.Location = New-Object System.Drawing.Point(10, 240)
+    $imageNameTextBox.Size = New-Object System.Drawing.Size(480, 20)
+    $wslBackupForm.Controls.Add($imageNameTextBox)
+
+    $label3 = New-Object System.Windows.Forms.Label
+    $label3.Location = New-Object System.Drawing.Point(10, 270)
+    $label3.Size = New-Object System.Drawing.Size(480, 20)
+    $label3.Text = "Enter backup name:"
+    $label3.ForeColor = [System.Drawing.Color]::White
+    $wslBackupForm.Controls.Add($label3)
+
+    $backupNameTextBox = New-Object System.Windows.Forms.TextBox
+    $backupNameTextBox.Location = New-Object System.Drawing.Point(10, 300)
+    $backupNameTextBox.Size = New-Object System.Drawing.Size(480, 20)
+    $wslBackupForm.Controls.Add($backupNameTextBox)
+
+    $executeButton = New-Object System.Windows.Forms.Button
+    $executeButton.Location = New-Object System.Drawing.Point(10, 330)
+    $executeButton.Size = New-Object System.Drawing.Size(480, 30)
+    $executeButton.Text = "Backup WSL Image"
+    $executeButton.BackColor = [System.Drawing.Color]::White
+    $executeButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $executeButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $executeButton.Add_Click({
+        $selectedImage = $imageNameTextBox.Text.Trim()
+        $backupName = $backupNameTextBox.Text.Trim()
+        if ($selectedImage -and $backupName) {
+            try {
+                $process = Start-Process -FilePath "wsl.exe" -ArgumentList "--export", $selectedImage, "C:\_WSL2\$backupName.tar" -NoNewWindow -PassThru -Wait
+                if ($process.ExitCode -eq 0) {
+                    [System.Windows.Forms.MessageBox]::Show("WSL Image $selectedImage backed up successfully to C:\_WSL2\$backupName.tar.", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                } else {
+                    [System.Windows.Forms.MessageBox]::Show("Failed to backup WSL Image. Exit code: " + $process.ExitCode, "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                }
+            }
+            catch {
+                [System.Windows.Forms.MessageBox]::Show("Error executing command: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+        } else {
+            [System.Windows.Forms.MessageBox]::Show("Please enter a WSL image name and a backup name.", "Missing Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+        }
+    })
+    $wslBackupForm.Controls.Add($executeButton)
+
+    $wslBackupForm.Add_Shown({
+        try {
+            $wslOutput = wsl --list --verbose | Out-String
+            $textBox.Text = $wslOutput
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("Error retrieving WSL images: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
+
+    $wslBackupForm.ShowDialog()
+}
