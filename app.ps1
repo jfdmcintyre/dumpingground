@@ -414,3 +414,156 @@ $action4 = {
 
     $wslBackupForm.ShowDialog()
 }
+
+
+
+
+
+$action4 = {
+    $wslBackupForm = New-Object System.Windows.Forms.Form
+    $wslBackupForm.Text = "WSL Export"
+    $wslBackupForm.Size = New-Object System.Drawing.Size(500, 600)
+    $wslBackupForm.StartPosition = "CenterScreen"
+    $wslBackupForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+
+    $label = New-Object System.Windows.Forms.Label
+    $label.Location = New-Object System.Drawing.Point(10, 20)
+    $label.Size = New-Object System.Drawing.Size(480, 20)
+    $label.Text = "Available WSL Images:"
+    $label.ForeColor = [System.Drawing.Color]::White
+    $wslBackupForm.Controls.Add($label)
+
+    $panel = New-Object System.Windows.Forms.Panel
+    $panel.Location = New-Object System.Drawing.Point(10, 50)
+    $panel.Size = New-Object System.Drawing.Size(480, 150)
+    $panel.AutoScroll = $true
+    $wslBackupForm.Controls.Add($panel)
+
+    $label1 = New-Object System.Windows.Forms.Label
+    $label1.Location = New-Object System.Drawing.Point(10, 210)
+    $label1.Size = New-Object System.Drawing.Size(480, 20)
+    $label1.Text = "Enter the name of the WSL image to export:"
+    $label1.ForeColor = [System.Drawing.Color]::White
+    $wslBackupForm.Controls.Add($label1)
+
+    $imageNameTextBox = New-Object System.Windows.Forms.TextBox
+    $imageNameTextBox.Location = New-Object System.Drawing.Point(10, 240)
+    $imageNameTextBox.Size = New-Object System.Drawing.Size(480, 20)
+    $wslBackupForm.Controls.Add($imageNameTextBox)
+
+    $label2 = New-Object System.Windows.Forms.Label
+    $label2.Location = New-Object System.Drawing.Point(10, 270)
+    $label2.Size = New-Object System.Drawing.Size(480, 20)
+    $label2.Text = "Enter export file name (will be saved in C:\_WSL2):"
+    $label2.ForeColor = [System.Drawing.Color]::White
+    $wslBackupForm.Controls.Add($label2)
+
+    $exportNameTextBox = New-Object System.Windows.Forms.TextBox
+    $exportNameTextBox.Location = New-Object System.Drawing.Point(10, 300)
+    $exportNameTextBox.Size = New-Object System.Drawing.Size(480, 20)
+    $wslBackupForm.Controls.Add($exportNameTextBox)
+
+    $outputTextBox = New-Object System.Windows.Forms.TextBox
+    $outputTextBox.Location = New-Object System.Drawing.Point(10, 370)
+    $outputTextBox.Size = New-Object System.Drawing.Size(480, 200)
+    $outputTextBox.Multiline = $true
+    $outputTextBox.ScrollBars = "Vertical"
+    $outputTextBox.ReadOnly = $true
+    $outputTextBox.Font = New-Object System.Drawing.Font("Consolas", 10)
+    $outputTextBox.ForeColor = [System.Drawing.Color]::White
+    $outputTextBox.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 109)
+    $wslBackupForm.Controls.Add($outputTextBox)
+
+    $executeButton = New-Object System.Windows.Forms.Button
+    $executeButton.Location = New-Object System.Drawing.Point(10, 330)
+    $executeButton.Size = New-Object System.Drawing.Size(480, 30)
+    $executeButton.Text = "Export WSL Image"
+    $executeButton.BackColor = [System.Drawing.Color]::White
+    $executeButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $executeButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $executeButton.Add_Click({
+        $selectedImage = $imageNameTextBox.Text.Trim()
+        $exportName = $exportNameTextBox.Text.Trim()
+        
+        $outputTextBox.Clear()
+        $outputTextBox.AppendText("Selected Image: $selectedImage`r`nExport Name: $exportName`r`n")
+        
+        if ($selectedImage -and $exportName) {
+            if (-not $exportName.EndsWith(".tar")) {
+                $exportName += ".tar"
+            }
+            $exportPath = "C:\_WSL2\$exportName"
+            
+            $outputTextBox.AppendText("Export Path: $exportPath`r`n")
+            
+            try {
+                if (-not (Test-Path "C:\_WSL2")) {
+                    New-Item -ItemType Directory -Path "C:\_WSL2" | Out-Null
+                    $outputTextBox.AppendText("Created directory: C:\_WSL2`r`n")
+                }
+
+                $command = "wsl.exe --export `"$selectedImage`" `"$exportPath`""
+                $outputTextBox.AppendText("Executing command: $command`r`n")
+
+                $process = Start-Process -FilePath "wsl.exe" -ArgumentList "--export", $selectedImage, $exportPath -NoNewWindow -Wait -PassThru -RedirectStandardOutput "C:\_WSL2\export_output.log" -RedirectStandardError "C:\_WSL2\export_error.log"
+                
+                $outputTextBox.AppendText("Process Exit Code: $($process.ExitCode)`r`n")
+                
+                $stdout = Get-Content "C:\_WSL2\export_output.log" -Raw
+                $stderr = Get-Content "C:\_WSL2\export_error.log" -Raw
+                
+                $outputTextBox.AppendText("Standard Output: $stdout`r`n")
+                $outputTextBox.AppendText("Standard Error: $stderr`r`n")
+
+                if ($process.ExitCode -eq 0) {
+                    $outputTextBox.AppendText("Export successful.`r`n")
+                    [System.Windows.Forms.MessageBox]::Show("WSL Image $selectedImage exported successfully to $exportPath", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                } else {
+                    $outputTextBox.AppendText("Export failed.`r`n")
+                    [System.Windows.Forms.MessageBox]::Show("Failed to export WSL Image. Exit code: $($process.ExitCode)`r`nError: $stderr", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                }
+            }
+            catch {
+                $outputTextBox.AppendText("Exception occurred: $_`r`n")
+                [System.Windows.Forms.MessageBox]::Show("Error executing command: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+        } else {
+            $outputTextBox.AppendText("Missing information. Please enter an image name and an export name.`r`n")
+            [System.Windows.Forms.MessageBox]::Show("Please enter a WSL image name and an export file name.", "Missing Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+        }
+    })
+    $wslBackupForm.Controls.Add($executeButton)
+
+    $wslBackupForm.Add_Shown({
+        try {
+            $wslOutput = wsl --list --verbose 2>&1 | Where-Object { $_ -ne "" }
+            if ($wslOutput) {
+                $yPosition = 10
+                foreach ($image in $wslOutput) {
+                    $radioButton = New-Object System.Windows.Forms.RadioButton
+                    $radioButton.Location = New-Object System.Drawing.Point(10, $yPosition)
+                    $radioButton.Size = New-Object System.Drawing.Size(460, 20)
+                    $radioButton.Text = $image.Trim()
+                    $radioButton.ForeColor = [System.Drawing.Color]::White
+                    $radioButton.Add_CheckedChanged({
+                        if ($this.Checked) {
+                            $imageNameTextBox.Text = $this.Text.Split()[0]
+                        }
+                    })
+                    $panel.Controls.Add($radioButton)
+                    $yPosition += 25
+                }
+            } else {
+                $outputTextBox.AppendText("No WSL images found.`r`n")
+                [System.Windows.Forms.MessageBox]::Show("No WSL images found.", "Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            }
+        }
+        catch {
+            $errorMessage = $_.Exception.Message
+            $outputTextBox.AppendText("Error retrieving WSL images: $errorMessage`r`n")
+            [System.Windows.Forms.MessageBox]::Show("Error retrieving WSL images: $errorMessage", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    })
+
+    $wslBackupForm.ShowDialog()
+}
