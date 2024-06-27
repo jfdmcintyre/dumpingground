@@ -290,6 +290,8 @@ $action4 = {
 
 
 
+
+
 $action5 = {
     $wslBackupForm = New-Object System.Windows.Forms.Form
     $wslBackupForm.Text = "WSL Change Password"
@@ -332,7 +334,6 @@ $action5 = {
             $imageNameTextBox.Text = $selectedImageName
         }
     })
-
     $wslBackupForm.Controls.Add($dataGridView)
 
     $label1 = New-Object System.Windows.Forms.Label
@@ -347,9 +348,22 @@ $action5 = {
     $imageNameTextBox.Size = New-Object System.Drawing.Size(580, 20)
     $wslBackupForm.Controls.Add($imageNameTextBox)
 
+    $label2 = New-Object System.Windows.Forms.Label
+    $label2.Location = New-Object System.Drawing.Point(10, 270)
+    $label2.Size = New-Object System.Drawing.Size(580, 20)
+    $label2.Text = "Enter the new password for user 'wsl2user':"
+    $label2.ForeColor = [System.Drawing.Color]::White
+    $wslBackupForm.Controls.Add($label2)
+
+    $passwordTextBox = New-Object System.Windows.Forms.TextBox
+    $passwordTextBox.Location = New-Object System.Drawing.Point(10, 300)
+    $passwordTextBox.Size = New-Object System.Drawing.Size(580, 20)
+    $passwordTextBox.UseSystemPasswordChar = $true
+    $wslBackupForm.Controls.Add($passwordTextBox)
+
     $outputTextBox = New-Object System.Windows.Forms.TextBox
-    $outputTextBox.Location = New-Object System.Drawing.Point(10, 300)
-    $outputTextBox.Size = New-Object System.Drawing.Size(580, 240)
+    $outputTextBox.Location = New-Object System.Drawing.Point(10, 360)
+    $outputTextBox.Size = New-Object System.Drawing.Size(580, 180)
     $outputTextBox.Multiline = $true
     $outputTextBox.ScrollBars = "Vertical"
     $outputTextBox.ReadOnly = $true
@@ -359,7 +373,7 @@ $action5 = {
     $wslBackupForm.Controls.Add($outputTextBox)
 
     $executeButton = New-Object System.Windows.Forms.Button
-    $executeButton.Location = New-Object System.Drawing.Point(10, 270)
+    $executeButton.Location = New-Object System.Drawing.Point(10, 330)
     $executeButton.Size = New-Object System.Drawing.Size(580, 30)
     $executeButton.Text = "Change Password"
     $executeButton.BackColor = [System.Drawing.Color]::White
@@ -367,52 +381,41 @@ $action5 = {
     $executeButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $executeButton.Add_Click({
         $selectedImage = $imageNameTextBox.Text.Trim()
+        $newPassword = $passwordTextBox.Text
         
         $outputTextBox.Clear()
+        $outputTextBox.AppendText("Selected Image: $selectedImage`r`n")
         
-        if ($dataGridView.Rows.Count -eq 1) {
-            $command = "wsl.exe -u root passwd wsl2user"
-            $outputTextBox.AppendText("Only one WSL image found. Using simplified command.`r`n")
-        } elseif ($dataGridView.Rows.Count -eq 2 -and $dataGridView.Rows.Cells.Value -contains "wsl-vpnkit") {
-            $command = "wsl.exe -u root passwd wsl2user"
-            $outputTextBox.AppendText("Two WSL images found, one is 'wsl-vpnkit'. Using simplified command.`r`n")
-        } elseif ($selectedImage) {
-            $command = "wsl.exe -d `"$selectedImage`" -u root passwd wsl2user"
-            $outputTextBox.AppendText("Selected Image: $selectedImage`r`n")
-        } else {
-            $outputTextBox.AppendText("Missing information. Please enter an image name.`r`n")
-            [System.Windows.Forms.MessageBox]::Show("Please enter a WSL image name.", "Missing Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
-            return
-        }
-        
-        $outputTextBox.AppendText("Executing command: $command`r`n")
-        
-        try {
-            if ($dataGridView.Rows.Count -eq 1 -or ($dataGridView.Rows.Count -eq 2 -and $dataGridView.Rows.Cells.Value -contains "wsl-vpnkit")) {
-                $process = Start-Process -FilePath "wsl.exe" -ArgumentList "-u", "root", "passwd", "wsl2user"  -Wait -PassThru -RedirectStandardOutput "C:\_WSL2\passwd_output.log" -RedirectStandardError "C:\_WSL2\passwd_error.log"
-            } else {
-                $process = Start-Process -FilePath "wsl.exe" -ArgumentList "-d", $selectedImage, "-u", "root", "passwd", "wsl2user"  -Wait -PassThru -RedirectStandardOutput "C:\_WSL2\passwd_output.log" -RedirectStandardError "C:\_WSL2\passwd_error.log"
-            }
+        if ($selectedImage -and $newPassword) {
+            $command = "echo wsl2user:$newPassword | wsl -d `"$selectedImage`" -u root chpasswd"
+            $outputTextBox.AppendText("Executing command to change password...`r`n")
             
-            $outputTextBox.AppendText("Process Exit Code: $($process.ExitCode)`r`n")
-            
-            $stdout = Get-Content "C:\_WSL2\passwd_output.log" -Raw
-            $stderr = Get-Content "C:\_WSL2\passwd_error.log" -Raw
-            
-            $outputTextBox.AppendText("Standard Output: $stdout`r`n")
-            $outputTextBox.AppendText("Standard Error: $stderr`r`n")
+            try {
+                $process = Start-Process -FilePath "powershell" -ArgumentList "-Command", $command -NoNewWindow -Wait -PassThru -RedirectStandardOutput "C:\_WSL2\passwd_output.log" -RedirectStandardError "C:\_WSL2\passwd_error.log"
+                
+                $outputTextBox.AppendText("Process Exit Code: $($process.ExitCode)`r`n")
+                
+                $stdout = Get-Content "C:\_WSL2\passwd_output.log" -Raw
+                $stderr = Get-Content "C:\_WSL2\passwd_error.log" -Raw
+                
+                $outputTextBox.AppendText("Standard Output: $stdout`r`n")
+                $outputTextBox.AppendText("Standard Error: $stderr`r`n")
 
-            if ($process.ExitCode -eq 0) {
-                $outputTextBox.AppendText("Password change successful.`r`n")
-                [System.Windows.Forms.MessageBox]::Show("Password for WSL user 'wsl2user' changed successfully.", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-            } else {
-                $outputTextBox.AppendText("Password change failed.`r`n")
-                [System.Windows.Forms.MessageBox]::Show("Failed to change password for WSL user. Exit code: $($process.ExitCode)`r`nError: $stderr", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                if ($process.ExitCode -eq 0) {
+                    $outputTextBox.AppendText("Password change successful.`r`n")
+                    [System.Windows.Forms.MessageBox]::Show("Password for user 'wsl2user' in WSL Image $selectedImage changed successfully.", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                } else {
+                    $outputTextBox.AppendText("Password change failed.`r`n")
+                    [System.Windows.Forms.MessageBox]::Show("Failed to change password for WSL user. Exit code: $($process.ExitCode)`r`nError: $stderr", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                }
             }
-        }
-        catch {
-            $outputTextBox.AppendText("Exception occurred: $_`r`n")
-            [System.Windows.Forms.MessageBox]::Show("Error executing command: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            catch {
+                $outputTextBox.AppendText("Exception occurred: $_`r`n")
+                [System.Windows.Forms.MessageBox]::Show("Error executing command: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+        } else {
+            $outputTextBox.AppendText("Missing information. Please enter an image name and a new password.`r`n")
+            [System.Windows.Forms.MessageBox]::Show("Please enter a WSL image name and a new password.", "Missing Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
         }
     })
     $wslBackupForm.Controls.Add($executeButton)
@@ -420,28 +423,9 @@ $action5 = {
     $wslBackupForm.Add_Shown({
         try {
             $wslOutput = wsl --list --quiet 2>&1
-            $outputTextBox.AppendText("Raw WSL output:`r`n$wslOutput`r`n")
-            
-            if ($wslOutput) {
-                $sortedImages = $wslOutput -split "`n" | Where-Object { $_.Trim() -ne "" } | Sort-Object
-                $outputTextBox.AppendText("Sorted images:`r`n$($sortedImages -join "`r`n")`r`n")
-                
-                foreach ($image in $sortedImages) {
-                    $dataGridView.Rows.Add($image.Trim())
-                }
-                
-                if ($dataGridView.Rows.Count -eq 1) {
-                    $imageNameTextBox.Text = $dataGridView.Rows[0].Cells[0].Value
-                    $imageNameTextBox.Enabled = $false
-                    $label1.Text = "Only one WSL image found. It will be used automatically:"
-                } elseif ($dataGridView.Rows.Count -eq 2 -and $dataGridView.Rows.Cells.Value -contains "wsl-vpnkit") {
-                    $imageNameTextBox.Text = ($dataGridView.Rows.Cells.Value | Where-Object { $_ -ne "wsl-vpnkit" })[0]
-                    $imageNameTextBox.Enabled = $false
-                    $label1.Text = "Two WSL images found, one is 'wsl-vpnkit'. The other will be used automatically:"
-                }
-            } else {
-                $outputTextBox.AppendText("No WSL images found.`r`n")
-                [System.Windows.Forms.MessageBox]::Show("No WSL images found.", "Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            $sortedImages = $wslOutput -split "`n" | Where-Object { $_.Trim() -ne "" } | Sort-Object
+            foreach ($image in $sortedImages) {
+                $dataGridView.Rows.Add($image.Trim())
             }
         }
         catch {
@@ -650,8 +634,7 @@ $action7 = {
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
+
 
 function Set-Watermark {
     param (
