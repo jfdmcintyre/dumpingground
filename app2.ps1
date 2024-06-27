@@ -295,7 +295,7 @@ $action4 = {
 $action5 = {
     $wslBackupForm = New-Object System.Windows.Forms.Form
     $wslBackupForm.Text = "WSL Change Password"
-    $wslBackupForm.Size = New-Object System.Drawing.Size(600, 600)
+    $wslBackupForm.Size = New-Object System.Drawing.Size(600, 650)
     $wslBackupForm.StartPosition = "CenterScreen"
     $wslBackupForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
 
@@ -355,14 +355,27 @@ $action5 = {
     $label2.ForeColor = [System.Drawing.Color]::White
     $wslBackupForm.Controls.Add($label2)
 
-    $passwordTextBox = New-Object System.Windows.Forms.TextBox
-    $passwordTextBox.Location = New-Object System.Drawing.Point(10, 300)
-    $passwordTextBox.Size = New-Object System.Drawing.Size(580, 20)
-    $passwordTextBox.UseSystemPasswordChar = $true
-    $wslBackupForm.Controls.Add($passwordTextBox)
+    $passwordTextBox1 = New-Object System.Windows.Forms.TextBox
+    $passwordTextBox1.Location = New-Object System.Drawing.Point(10, 300)
+    $passwordTextBox1.Size = New-Object System.Drawing.Size(580, 20)
+    $passwordTextBox1.UseSystemPasswordChar = $true
+    $wslBackupForm.Controls.Add($passwordTextBox1)
+
+    $label3 = New-Object System.Windows.Forms.Label
+    $label3.Location = New-Object System.Drawing.Point(10, 330)
+    $label3.Size = New-Object System.Drawing.Size(580, 20)
+    $label3.Text = "Re-enter the new password for user 'wsl2user':"
+    $label3.ForeColor = [System.Drawing.Color]::White
+    $wslBackupForm.Controls.Add($label3)
+
+    $passwordTextBox2 = New-Object System.Windows.Forms.TextBox
+    $passwordTextBox2.Location = New-Object System.Drawing.Point(10, 360)
+    $passwordTextBox2.Size = New-Object System.Drawing.Size(580, 20)
+    $passwordTextBox2.UseSystemPasswordChar = $true
+    $wslBackupForm.Controls.Add($passwordTextBox2)
 
     $outputTextBox = New-Object System.Windows.Forms.TextBox
-    $outputTextBox.Location = New-Object System.Drawing.Point(10, 360)
+    $outputTextBox.Location = New-Object System.Drawing.Point(10, 420)
     $outputTextBox.Size = New-Object System.Drawing.Size(580, 180)
     $outputTextBox.Multiline = $true
     $outputTextBox.ScrollBars = "Vertical"
@@ -373,7 +386,7 @@ $action5 = {
     $wslBackupForm.Controls.Add($outputTextBox)
 
     $executeButton = New-Object System.Windows.Forms.Button
-    $executeButton.Location = New-Object System.Drawing.Point(10, 330)
+    $executeButton.Location = New-Object System.Drawing.Point(10, 390)
     $executeButton.Size = New-Object System.Drawing.Size(580, 30)
     $executeButton.Text = "Change Password"
     $executeButton.BackColor = [System.Drawing.Color]::White
@@ -381,13 +394,19 @@ $action5 = {
     $executeButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $executeButton.Add_Click({
         $selectedImage = $imageNameTextBox.Text.Trim()
-        $newPassword = $passwordTextBox.Text
+        $newPassword1 = $passwordTextBox1.Text
+        $newPassword2 = $passwordTextBox2.Text
         
         $outputTextBox.Clear()
         $outputTextBox.AppendText("Selected Image: $selectedImage`r`n")
         
-        if ($selectedImage -and $newPassword) {
-            $command = "echo wsl2user:$newPassword | wsl -d `"$selectedImage`" -u root chpasswd"
+        if ($selectedImage -and $newPassword1 -and $newPassword2) {
+            if ($newPassword1 -ne $newPassword2) {
+                [System.Windows.Forms.MessageBox]::Show("Passwords do not match. Please enter the same password twice.", "Password Mismatch", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+                return
+            }
+
+            $command = "echo wsl2user:$newPassword1 | wsl -d `"$selectedImage`" -u root chpasswd"
             $outputTextBox.AppendText("Executing command to change password...`r`n")
             
             try {
@@ -437,6 +456,7 @@ $action5 = {
 
     $wslBackupForm.ShowDialog()
 }
+
 
 
 
