@@ -288,14 +288,13 @@ $action4 = {
     $wslBackupForm.ShowDialog()
 }
 
-
-
-
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
 
 $action5 = {
     $wslBackupForm = New-Object System.Windows.Forms.Form
     $wslBackupForm.Text = "WSL Change Password"
-    $wslBackupForm.Size = New-Object System.Drawing.Size(600, 650)
+    $wslBackupForm.Size = New-Object System.Drawing.Size(600, 450)
     $wslBackupForm.StartPosition = "CenterScreen"
     $wslBackupForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
 
@@ -348,35 +347,9 @@ $action5 = {
     $imageNameTextBox.Size = New-Object System.Drawing.Size(580, 20)
     $wslBackupForm.Controls.Add($imageNameTextBox)
 
-    $label2 = New-Object System.Windows.Forms.Label
-    $label2.Location = New-Object System.Drawing.Point(10, 270)
-    $label2.Size = New-Object System.Drawing.Size(580, 20)
-    $label2.Text = "Enter the new password for user 'wsl2user':"
-    $label2.ForeColor = [System.Drawing.Color]::White
-    $wslBackupForm.Controls.Add($label2)
-
-    $passwordTextBox1 = New-Object System.Windows.Forms.TextBox
-    $passwordTextBox1.Location = New-Object System.Drawing.Point(10, 300)
-    $passwordTextBox1.Size = New-Object System.Drawing.Size(580, 20)
-    $passwordTextBox1.UseSystemPasswordChar = $true
-    $wslBackupForm.Controls.Add($passwordTextBox1)
-
-    $label3 = New-Object System.Windows.Forms.Label
-    $label3.Location = New-Object System.Drawing.Point(10, 330)
-    $label3.Size = New-Object System.Drawing.Size(580, 20)
-    $label3.Text = "Re-enter the new password for user 'wsl2user':"
-    $label3.ForeColor = [System.Drawing.Color]::White
-    $wslBackupForm.Controls.Add($label3)
-
-    $passwordTextBox2 = New-Object System.Windows.Forms.TextBox
-    $passwordTextBox2.Location = New-Object System.Drawing.Point(10, 360)
-    $passwordTextBox2.Size = New-Object System.Drawing.Size(580, 20)
-    $passwordTextBox2.UseSystemPasswordChar = $true
-    $wslBackupForm.Controls.Add($passwordTextBox2)
-
     $outputTextBox = New-Object System.Windows.Forms.TextBox
-    $outputTextBox.Location = New-Object System.Drawing.Point(10, 420)
-    $outputTextBox.Size = New-Object System.Drawing.Size(580, 180)
+    $outputTextBox.Location = New-Object System.Drawing.Point(10, 300)
+    $outputTextBox.Size = New-Object System.Drawing.Size(580, 100)
     $outputTextBox.Multiline = $true
     $outputTextBox.ScrollBars = "Vertical"
     $outputTextBox.ReadOnly = $true
@@ -386,7 +359,7 @@ $action5 = {
     $wslBackupForm.Controls.Add($outputTextBox)
 
     $executeButton = New-Object System.Windows.Forms.Button
-    $executeButton.Location = New-Object System.Drawing.Point(10, 390)
+    $executeButton.Location = New-Object System.Drawing.Point(10, 270)
     $executeButton.Size = New-Object System.Drawing.Size(580, 30)
     $executeButton.Text = "Change Password"
     $executeButton.BackColor = [System.Drawing.Color]::White
@@ -394,47 +367,26 @@ $action5 = {
     $executeButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $executeButton.Add_Click({
         $selectedImage = $imageNameTextBox.Text.Trim()
-        $newPassword1 = $passwordTextBox1.Text
-        $newPassword2 = $passwordTextBox2.Text
         
         $outputTextBox.Clear()
         $outputTextBox.AppendText("Selected Image: $selectedImage`r`n")
         
-        if ($selectedImage -and $newPassword1 -and $newPassword2) {
-            if ($newPassword1 -ne $newPassword2) {
-                [System.Windows.Forms.MessageBox]::Show("Passwords do not match. Please enter the same password twice.", "Password Mismatch", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
-                return
-            }
-
-            $command = "echo wsl2user:$newPassword1 | wsl -d `"$selectedImage`" -u root chpasswd"
-            $outputTextBox.AppendText("Executing command to change password...`r`n")
+        if ($selectedImage) {
+            $cmdCommand = "wsl -d $selectedImage -u root passwd wsl2user"
+            $outputTextBox.AppendText("Opening Command Prompt to change password...`r`n")
             
             try {
-                $process = Start-Process -FilePath "powershell" -ArgumentList "-Command", $command -NoNewWindow -Wait -PassThru -RedirectStandardOutput "C:\_WSL2\passwd_output.log" -RedirectStandardError "C:\_WSL2\passwd_error.log"
-                
-                $outputTextBox.AppendText("Process Exit Code: $($process.ExitCode)`r`n")
-                
-                $stdout = Get-Content "C:\_WSL2\passwd_output.log" -Raw
-                $stderr = Get-Content "C:\_WSL2\passwd_error.log" -Raw
-                
-                $outputTextBox.AppendText("Standard Output: $stdout`r`n")
-                $outputTextBox.AppendText("Standard Error: $stderr`r`n")
-
-                if ($process.ExitCode -eq 0) {
-                    $outputTextBox.AppendText("Password change successful.`r`n")
-                    [System.Windows.Forms.MessageBox]::Show("Password for user 'wsl2user' in WSL Image $selectedImage changed successfully.", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-                } else {
-                    $outputTextBox.AppendText("Password change failed.`r`n")
-                    [System.Windows.Forms.MessageBox]::Show("Failed to change password for WSL user. Exit code: $($process.ExitCode)`r`nError: $stderr", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                }
+                Start-Process -FilePath "cmd.exe" -ArgumentList "/c", $cmdCommand
+                $outputTextBox.AppendText("Command executed: $cmdCommand`r`n")
+                [System.Windows.Forms.MessageBox]::Show("Command executed. Please enter the new password in the Command Prompt window.", "Command Executed", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
             }
             catch {
                 $outputTextBox.AppendText("Exception occurred: $_`r`n")
                 [System.Windows.Forms.MessageBox]::Show("Error executing command: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             }
         } else {
-            $outputTextBox.AppendText("Missing information. Please enter an image name and a new password.`r`n")
-            [System.Windows.Forms.MessageBox]::Show("Please enter a WSL image name and a new password.", "Missing Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+            $outputTextBox.AppendText("Missing information. Please enter an image name.`r`n")
+            [System.Windows.Forms.MessageBox]::Show("Please enter a WSL image name.", "Missing Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
         }
     })
     $wslBackupForm.Controls.Add($executeButton)
@@ -456,9 +408,6 @@ $action5 = {
 
     $wslBackupForm.ShowDialog()
 }
-
-
-
 
 
 $action6 = {
