@@ -71,17 +71,106 @@ function Create-CategoryLabel {
     $label.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
     return $label
 }
+function Show-MessageBoxWithTimeout {
+    param (
+        [string]$Message,
+        [string]$Title,
+        [System.Windows.Forms.MessageBoxButtons]$Buttons,
+        [System.Windows.Forms.MessageBoxIcon]$Icon
+    )
 
-# Define actions for each button
-$action1 = {
-    try {
-        Start-Process -FilePath "cmd.exe" -ArgumentList "/c start wsl"
-        [System.Windows.Forms.MessageBox]::Show("WSL has been launched in a new Command Prompt window.", "WSL Launched")
-    }
-    catch {
-        [System.Windows.Forms.MessageBox]::Show("Error launching WSL: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-    }
+    $form = New-Object System.Windows.Forms.Form
+    $form.TopMost = $true
+    $form.TopLevel = $true
+
+    $timer = New-Object System.Windows.Forms.Timer
+    $timer.Interval = 5000
+    $timer.Add_Tick({
+        $form.Close()
+    })
+
+    $result = [System.Windows.Forms.MessageBox]::Show($form, $Message, $Title, $Buttons, $Icon)
+    $timer.Start()
+    $form.ShowDialog() | Out-Null
+    $timer.Stop()
+
+    return $result
 }
+# Define actions for each button
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+function Show-Notification {
+    param (
+        [string]$Title,
+        [string]$Message,
+        [System.Windows.Forms.ToolTipIcon]$Icon = [System.Windows.Forms.ToolTipIcon]::Info
+    )
+
+    $balloon = New-Object System.Windows.Forms.NotifyIcon
+    $balloon.Icon = [System.Drawing.SystemIcons]::Information
+    $balloon.BalloonTipIcon = $Icon
+    $balloon.BalloonTipTitle = $Title
+    $balloon.BalloonTipText = $Message
+    $balloon.Visible = $true
+    $balloon.ShowBalloonTip(5000)
+
+    Start-Sleep -Seconds 5
+    $balloon.Dispose()
+}
+
+$action1 = {
+    $wslInstallForm = New-Object System.Windows.Forms.Form
+    $wslInstallForm.Text = "WSL Installation"
+    $wslInstallForm.Size = New-Object System.Drawing.Size(400, 200)
+    $wslInstallForm.StartPosition = "CenterScreen"
+    $wslInstallForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+
+    $label = New-Object System.Windows.Forms.Label
+    $label.Location = New-Object System.Drawing.Point(10, 20)
+    $label.Size = New-Object System.Drawing.Size(380, 40)
+    $label.Text = "This will install WSL with the default Ubuntu distribution. Do you want to proceed?"
+    $label.ForeColor = [System.Drawing.Color]::White
+    $wslInstallForm.Controls.Add($label)
+
+    $yesButton = New-Object System.Windows.Forms.Button
+    $yesButton.Location = New-Object System.Drawing.Point(100, 80)
+    $yesButton.Size = New-Object System.Drawing.Size(75, 23)
+    $yesButton.Text = "Yes"
+    $yesButton.BackColor = [System.Drawing.Color]::White
+    $yesButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $yesButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $yesButton.Add_Click({
+        $wslInstallForm.Close()
+        try {
+            $process = Start-Process -FilePath "wsl" -ArgumentList "--install" -NoNewWindow -Wait -PassThru
+            if ($process.ExitCode -eq 0) {
+                Show-Notification -Title "Installation Complete" -Message "WSL installation completed successfully. Please restart your computer to finish the setup." -Icon Info
+            } else {
+                Show-Notification -Title "Installation Failed" -Message "WSL installation failed. Exit code: $($process.ExitCode)" -Icon Error
+            }
+        } catch {
+            Show-Notification -Title "Error" -Message "An error occurred during WSL installation: $_" -Icon Error
+        }
+    })
+    $wslInstallForm.Controls.Add($yesButton)
+
+    $noButton = New-Object System.Windows.Forms.Button
+    $noButton.Location = New-Object System.Drawing.Point(200, 80)
+    $noButton.Size = New-Object System.Drawing.Size(75, 23)
+    $noButton.Text = "No"
+    $noButton.BackColor = [System.Drawing.Color]::White
+    $noButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $noButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $noButton.Add_Click({
+        $wslInstallForm.Close()
+        Show-Notification -Title "Cancelled" -Message "WSL installation cancelled." -Icon Info
+    })
+    $wslInstallForm.Controls.Add($noButton)
+
+    $wslInstallForm.ShowDialog()
+}
+
 
 $action2 = {
     try {
@@ -312,126 +401,138 @@ $action4 = {
 }
 
 
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
 
 $action5 = {
-    $wslBackupForm = New-Object System.Windows.Forms.Form
-    $wslBackupForm.Text = "WSL Change Password"
-    $wslBackupForm.Size = New-Object System.Drawing.Size(600, 450)
-    $wslBackupForm.StartPosition = "CenterScreen"
-    $wslBackupForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    function Get-WSLImages {
+        $originalEncoding = [Console]::OutputEncoding
+        [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
+        $wslOutput = wsl --list --quiet
+        [Console]::OutputEncoding = $originalEncoding
+        return ($wslOutput -split "`n" | Where-Object { $_.Trim() -ne "" })
+    }
 
-    $label = New-Object System.Windows.Forms.Label
-    $label.Location = New-Object System.Drawing.Point(10, 20)
-    $label.Size = New-Object System.Drawing.Size(580, 20)
-    $label.Text = "Available WSL Images (double-click to select):"
-    $label.ForeColor = [System.Drawing.Color]::White
-    $wslBackupForm.Controls.Add($label)
+    $wslImages = Get-WSLImages
 
-    $dataGridView = New-Object System.Windows.Forms.DataGridView
-    $dataGridView.Location = New-Object System.Drawing.Point(10, 50)
-    $dataGridView.Size = New-Object System.Drawing.Size(580, 150)
-    $dataGridView.ColumnCount = 1
-    $dataGridView.Columns[0].Name = "WSL Image Name"
-    $dataGridView.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::Fill
-    $dataGridView.ReadOnly = $true
-    $dataGridView.AllowUserToAddRows = $false
-    $dataGridView.AllowUserToDeleteRows = $false
-    $dataGridView.AllowUserToResizeRows = $false
-    $dataGridView.RowHeadersVisible = $false
-    $dataGridView.SelectionMode = [System.Windows.Forms.DataGridViewSelectionMode]::FullRowSelect
-    $dataGridView.MultiSelect = $false
-    $dataGridView.BackgroundColor = [System.Drawing.Color]::FromArgb(0, 120, 109)
-    $dataGridView.ForeColor = [System.Drawing.Color]::White
-    $dataGridView.DefaultCellStyle.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 109)
-    $dataGridView.DefaultCellStyle.ForeColor = [System.Drawing.Color]::White
-    $dataGridView.DefaultCellStyle.SelectionBackColor = [System.Drawing.Color]::FromArgb(0, 100, 89)
-    $dataGridView.DefaultCellStyle.SelectionForeColor = [System.Drawing.Color]::White
-    $dataGridView.ColumnHeadersDefaultCellStyle.BackColor = [System.Drawing.Color]::FromArgb(0, 100, 89)
-    $dataGridView.ColumnHeadersDefaultCellStyle.ForeColor = [System.Drawing.Color]::White
-    $dataGridView.EnableHeadersVisualStyles = $false
-    $dataGridView.Add_CellMouseDoubleClick({
-        if ($_.RowIndex -ge 0) {
-            $selectedImageName = $dataGridView.Rows[$_.RowIndex].Cells[0].Value
-            $imageNameTextBox.Text = $selectedImageName
-        }
-    })
-    $wslBackupForm.Controls.Add($dataGridView)
-
-    $label1 = New-Object System.Windows.Forms.Label
-    $label1.Location = New-Object System.Drawing.Point(10, 210)
-    $label1.Size = New-Object System.Drawing.Size(580, 20)
-    $label1.Text = "Enter the name of the WSL image to change password:"
-    $label1.ForeColor = [System.Drawing.Color]::White
-    $wslBackupForm.Controls.Add($label1)
-
-    $imageNameTextBox = New-Object System.Windows.Forms.TextBox
-    $imageNameTextBox.Location = New-Object System.Drawing.Point(10, 240)
-    $imageNameTextBox.Size = New-Object System.Drawing.Size(580, 20)
-    $wslBackupForm.Controls.Add($imageNameTextBox)
-
-    $outputTextBox = New-Object System.Windows.Forms.TextBox
-    $outputTextBox.Location = New-Object System.Drawing.Point(10, 300)
-    $outputTextBox.Size = New-Object System.Drawing.Size(580, 100)
-    $outputTextBox.Multiline = $true
-    $outputTextBox.ScrollBars = "Vertical"
-    $outputTextBox.ReadOnly = $true
-    $outputTextBox.Font = New-Object System.Drawing.Font("Consolas", 10)
-    $outputTextBox.ForeColor = [System.Drawing.Color]::White
-    $outputTextBox.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 109)
-    $wslBackupForm.Controls.Add($outputTextBox)
-
-    $executeButton = New-Object System.Windows.Forms.Button
-    $executeButton.Location = New-Object System.Drawing.Point(10, 270)
-    $executeButton.Size = New-Object System.Drawing.Size(580, 30)
-    $executeButton.Text = "Change Password"
-    $executeButton.BackColor = [System.Drawing.Color]::White
-    $executeButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
-    $executeButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-    $executeButton.Add_Click({
-        $selectedImage = $imageNameTextBox.Text.Trim()
+    if ($wslImages.Count -eq 2) {
+        # If only two WSL images exist, go directly to the WSL command
+        $selectedImage = $wslImages[0]
         
-        $outputTextBox.Clear()
-        $outputTextBox.AppendText("Selected Image: $selectedImage`r`n")
+        $command = "wsl -d $selectedImage -u root passwd wsl2user"
+        Start-Process -FilePath "cmd.exe" -ArgumentList "/c", $command
         
-        if ($selectedImage) {
-            $cmdCommand = "wsl -d $selectedImage -u root passwd wsl2user"
-            $outputTextBox.AppendText("Opening Command Prompt to change password...`r`n")
+        [System.Windows.Forms.MessageBox]::Show("Password change command executed for $selectedImage. Please enter the new password in the Command Prompt window.", "Command Executed", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+    }
+    else {
+        # If three or more WSL images exist, continue with the original action
+        $wslBackupForm = New-Object System.Windows.Forms.Form
+        $wslBackupForm.Text = "WSL Change Password"
+        $wslBackupForm.Size = New-Object System.Drawing.Size(600, 450)
+        $wslBackupForm.StartPosition = "CenterScreen"
+        $wslBackupForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+
+        $label = New-Object System.Windows.Forms.Label
+        $label.Location = New-Object System.Drawing.Point(10, 20)
+        $label.Size = New-Object System.Drawing.Size(580, 20)
+        $label.Text = "Available WSL Images (double-click to select):"
+        $label.ForeColor = [System.Drawing.Color]::White
+        $wslBackupForm.Controls.Add($label)
+
+        $dataGridView = New-Object System.Windows.Forms.DataGridView
+        $dataGridView.Location = New-Object System.Drawing.Point(10, 50)
+        $dataGridView.Size = New-Object System.Drawing.Size(580, 150)
+        $dataGridView.ColumnCount = 1
+        $dataGridView.Columns[0].Name = "WSL Image Name"
+        $dataGridView.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::Fill
+        $dataGridView.ReadOnly = $true
+        $dataGridView.AllowUserToAddRows = $false
+        $dataGridView.AllowUserToDeleteRows = $false
+        $dataGridView.AllowUserToResizeRows = $false
+        $dataGridView.RowHeadersVisible = $false
+        $dataGridView.SelectionMode = [System.Windows.Forms.DataGridViewSelectionMode]::FullRowSelect
+        $dataGridView.MultiSelect = $false
+        $dataGridView.BackgroundColor = [System.Drawing.Color]::FromArgb(0, 120, 109)
+        $dataGridView.ForeColor = [System.Drawing.Color]::White
+        $dataGridView.DefaultCellStyle.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 109)
+        $dataGridView.DefaultCellStyle.ForeColor = [System.Drawing.Color]::White
+        $dataGridView.DefaultCellStyle.SelectionBackColor = [System.Drawing.Color]::FromArgb(0, 100, 89)
+        $dataGridView.DefaultCellStyle.SelectionForeColor = [System.Drawing.Color]::White
+        $dataGridView.ColumnHeadersDefaultCellStyle.BackColor = [System.Drawing.Color]::FromArgb(0, 100, 89)
+        $dataGridView.ColumnHeadersDefaultCellStyle.ForeColor = [System.Drawing.Color]::White
+        $dataGridView.EnableHeadersVisualStyles = $false
+        $dataGridView.Add_CellMouseDoubleClick({
+            if ($_.RowIndex -ge 0) {
+                $selectedImageName = $dataGridView.Rows[$_.RowIndex].Cells[0].Value
+                $imageNameTextBox.Text = $selectedImageName
+            }
+        })
+        $wslBackupForm.Controls.Add($dataGridView)
+
+        $label1 = New-Object System.Windows.Forms.Label
+        $label1.Location = New-Object System.Drawing.Point(10, 210)
+        $label1.Size = New-Object System.Drawing.Size(580, 20)
+        $label1.Text = "Enter the name of the WSL image to change password:"
+        $label1.ForeColor = [System.Drawing.Color]::White
+        $wslBackupForm.Controls.Add($label1)
+
+        $imageNameTextBox = New-Object System.Windows.Forms.TextBox
+        $imageNameTextBox.Location = New-Object System.Drawing.Point(10, 240)
+        $imageNameTextBox.Size = New-Object System.Drawing.Size(580, 20)
+        $wslBackupForm.Controls.Add($imageNameTextBox)
+
+        $outputTextBox = New-Object System.Windows.Forms.TextBox
+        $outputTextBox.Location = New-Object System.Drawing.Point(10, 300)
+        $outputTextBox.Size = New-Object System.Drawing.Size(580, 100)
+        $outputTextBox.Multiline = $true
+        $outputTextBox.ScrollBars = "Vertical"
+        $outputTextBox.ReadOnly = $true
+        $outputTextBox.Font = New-Object System.Drawing.Font("Consolas", 10)
+        $outputTextBox.ForeColor = [System.Drawing.Color]::White
+        $outputTextBox.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 109)
+        $wslBackupForm.Controls.Add($outputTextBox)
+
+        $executeButton = New-Object System.Windows.Forms.Button
+        $executeButton.Location = New-Object System.Drawing.Point(10, 270)
+        $executeButton.Size = New-Object System.Drawing.Size(580, 30)
+        $executeButton.Text = "Change Password"
+        $executeButton.BackColor = [System.Drawing.Color]::White
+        $executeButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+        $executeButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+        $executeButton.Add_Click({
+            $selectedImage = $imageNameTextBox.Text.Trim()
             
-            try {
-                Start-Process -FilePath "cmd.exe" -ArgumentList "/c", $cmdCommand
-                $outputTextBox.AppendText("Command executed: $cmdCommand`r`n")
-                [System.Windows.Forms.MessageBox]::Show("Command executed. Please enter the new password in the Command Prompt window.", "Command Executed", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+            $outputTextBox.Clear()
+            $outputTextBox.AppendText("Selected Image: $selectedImage`r`n")
+            
+            if ($selectedImage) {
+                $cmdCommand = "wsl -d $selectedImage -u root passwd wsl2user"
+                $outputTextBox.AppendText("Opening Command Prompt to change password...`r`n")
+                
+                try {
+                    Start-Process -FilePath "cmd.exe" -ArgumentList "/c", $cmdCommand
+                    $outputTextBox.AppendText("Command executed: $cmdCommand`r`n")
+                    [System.Windows.Forms.MessageBox]::Show("Command executed. Please enter the new password in the Command Prompt window.", "Command Executed", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                }
+                catch {
+                    $outputTextBox.AppendText("Exception occurred: $_`r`n")
+                    [System.Windows.Forms.MessageBox]::Show("Error executing command: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                }
+            } else {
+                $outputTextBox.AppendText("Missing information. Please enter an image name.`r`n")
+                [System.Windows.Forms.MessageBox]::Show("Please enter a WSL image name.", "Missing Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
             }
-            catch {
-                $outputTextBox.AppendText("Exception occurred: $_`r`n")
-                [System.Windows.Forms.MessageBox]::Show("Error executing command: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-            }
-        } else {
-            $outputTextBox.AppendText("Missing information. Please enter an image name.`r`n")
-            [System.Windows.Forms.MessageBox]::Show("Please enter a WSL image name.", "Missing Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
-        }
-    })
-    $wslBackupForm.Controls.Add($executeButton)
+        })
+        $wslBackupForm.Controls.Add($executeButton)
 
-    $wslBackupForm.Add_Shown({
-        try {
-            $wslOutput = wsl --list --quiet 2>&1
-            $sortedImages = $wslOutput -split "`n" | Where-Object { $_.Trim() -ne "" } | Sort-Object
-            foreach ($image in $sortedImages) {
+        $wslBackupForm.Add_Shown({
+            foreach ($image in $wslImages) {
                 $dataGridView.Rows.Add($image.Trim())
             }
-        }
-        catch {
-            $errorMessage = $_.Exception.Message
-            $outputTextBox.AppendText("Error retrieving WSL images: $errorMessage`r`n")
-            [System.Windows.Forms.MessageBox]::Show("Error retrieving WSL images: $errorMessage", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-        }
-    })
+        })
 
-    $wslBackupForm.ShowDialog()
+        $wslBackupForm.ShowDialog()
+    }
 }
+
 
 
 $action6 = {
