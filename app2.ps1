@@ -112,6 +112,7 @@ $action3 = {
 }
 
 
+
 $action4 = {
     $wslBackupForm = New-Object System.Windows.Forms.Form
     $wslBackupForm.Text = "WSL Export"
@@ -130,7 +131,7 @@ $action4 = {
     $dataGridView.Location = New-Object System.Drawing.Point(10, 50)
     $dataGridView.Size = New-Object System.Drawing.Size(580, 150)
     $dataGridView.ColumnCount = 1
-    $dataGridView.Columns[0].Name = "WSL Image Name"
+    $dataGridView.Columns[0].Name = "WSL Images"
     $dataGridView.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::Fill
     $dataGridView.ReadOnly = $true
     $dataGridView.AllowUserToAddRows = $false
@@ -154,20 +155,38 @@ $action4 = {
             $imageNameTextBox.Text = $selectedImageName
         }
     })
-
-    # Add context menu for copying
-    $contextMenu = New-Object System.Windows.Forms.ContextMenuStrip
-    $copyMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
-    $copyMenuItem.Text = "Copy"
-    $copyMenuItem.Add_Click({
-        if ($dataGridView.SelectedCells.Count -gt 0) {
-            $cellValue = $dataGridView.SelectedCells[0].Value
-            [System.Windows.Forms.Clipboard]::SetText($cellValue)
+    $wslBackupForm.Controls.Add($dataGridView)
+    
+    # ... (other parts of the script remain the same)
+    
+    $wslBackupForm.Add_Shown({
+        try {
+            # Save the current output encoding
+            $originalEncoding = [Console]::OutputEncoding
+            
+            # Set the output encoding to Unicode
+            [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
+    
+            # Get the WSL list
+            $wslOutput = wsl --list --quiet
+    
+            # Restore the original output encoding
+            [Console]::OutputEncoding = $originalEncoding
+    
+            # Process the output
+            $wslLines = $wslOutput -split "`n" | Where-Object { $_.Trim() -ne "" }
+            
+            foreach ($image in $wslLines) {
+                $dataGridView.Rows.Add($image.Trim())
+            }
+        }
+        catch {
+            $errorMessage = $_.Exception.Message
+            $outputTextBox.AppendText("Error retrieving WSL images: $errorMessage`r`n")
+            [System.Windows.Forms.MessageBox]::Show("Error retrieving WSL images: $errorMessage", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
-    $contextMenu.Items.Add($copyMenuItem)
-    $dataGridView.ContextMenuStrip = $contextMenu
-
+    
     $wslBackupForm.Controls.Add($dataGridView)
 
     $label1 = New-Object System.Windows.Forms.Label
@@ -267,15 +286,15 @@ $action4 = {
 
     $wslBackupForm.Add_Shown({
         try {
-            $wslOutput = wsl --list --quiet 2>&1 | Where-Object { $_ -ne "" }
-            if ($wslOutput) {
-                $sortedImages = $wslOutput | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" } | Sort-Object
-                foreach ($image in $sortedImages) {
-                    $dataGridView.Rows.Add($image)
+            $wslOutput = wsl --list --verbose 2>&1
+            $wslLines = $wslOutput -split "`n" | Select-Object -Skip 1 | Where-Object { $_.Trim() -ne "" }
+            foreach ($line in $wslLines) {
+                $parts = $line -split "\s+" | Where-Object { $_ -ne "" }
+                if ($parts.Count -ge 2) {
+                    $imageName = $parts[1]
+                    $state = $parts[0]
+                    $dataGridView.Rows.Add($imageName, $state)
                 }
-            } else {
-                $outputTextBox.AppendText("No WSL images found.`r`n")
-                [System.Windows.Forms.MessageBox]::Show("No WSL images found.", "Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
             }
         }
         catch {
@@ -287,6 +306,7 @@ $action4 = {
 
     $wslBackupForm.ShowDialog()
 }
+
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
