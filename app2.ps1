@@ -119,57 +119,95 @@ function Show-Notification {
     $balloon.Dispose()
 }
 
-$action1 = {
-    $wslInstallForm = New-Object System.Windows.Forms.Form
-    $wslInstallForm.Text = "WSL Installation"
-    $wslInstallForm.Size = New-Object System.Drawing.Size(400, 200)
-    $wslInstallForm.StartPosition = "CenterScreen"
-    $wslInstallForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
 
-    $label = New-Object System.Windows.Forms.Label
-    $label.Location = New-Object System.Drawing.Point(10, 20)
-    $label.Size = New-Object System.Drawing.Size(380, 40)
-    $label.Text = "This will install WSL with the default Ubuntu distribution. Do you want to proceed?"
-    $label.ForeColor = [System.Drawing.Color]::White
-    $wslInstallForm.Controls.Add($label)
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
 
-    $yesButton = New-Object System.Windows.Forms.Button
-    $yesButton.Location = New-Object System.Drawing.Point(100, 80)
-    $yesButton.Size = New-Object System.Drawing.Size(75, 23)
-    $yesButton.Text = "Yes"
-    $yesButton.BackColor = [System.Drawing.Color]::White
-    $yesButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
-    $yesButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-    $yesButton.Add_Click({
-        $wslInstallForm.Close()
-        try {
-            $process = Start-Process -FilePath "wsl" -ArgumentList "--install" -NoNewWindow -Wait -PassThru
-            if ($process.ExitCode -eq 0) {
-                Show-Notification -Title "Installation Complete" -Message "WSL installation completed successfully. Please restart your computer to finish the setup." -Icon Info
-            } else {
-                Show-Notification -Title "Installation Failed" -Message "WSL installation failed. Exit code: $($process.ExitCode)" -Icon Error
-            }
-        } catch {
-            Show-Notification -Title "Error" -Message "An error occurred during WSL installation: $_" -Icon Error
-        }
-    })
-    $wslInstallForm.Controls.Add($yesButton)
+function Show-Notification {
+    param (
+        [string]$Title,
+        [string]$Message,
+        [System.Windows.Forms.ToolTipIcon]$Icon = [System.Windows.Forms.ToolTipIcon]::Info
+    )
 
-    $noButton = New-Object System.Windows.Forms.Button
-    $noButton.Location = New-Object System.Drawing.Point(200, 80)
-    $noButton.Size = New-Object System.Drawing.Size(75, 23)
-    $noButton.Text = "No"
-    $noButton.BackColor = [System.Drawing.Color]::White
-    $noButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
-    $noButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-    $noButton.Add_Click({
-        $wslInstallForm.Close()
-        Show-Notification -Title "Cancelled" -Message "WSL installation cancelled." -Icon Info
-    })
-    $wslInstallForm.Controls.Add($noButton)
+    $balloon = New-Object System.Windows.Forms.NotifyIcon
+    $balloon.Icon = [System.Drawing.SystemIcons]::Information
+    $balloon.BalloonTipIcon = $Icon
+    $balloon.BalloonTipTitle = $Title
+    $balloon.BalloonTipText = $Message
+    $balloon.Visible = $true
+    $balloon.ShowBalloonTip(5000)
 
-    $wslInstallForm.ShowDialog()
+    Start-Sleep -Seconds 5
+    $balloon.Dispose()
 }
+
+
+$action1 = {
+        function Get-WSLImages {
+        $originalEncoding = [Console]::OutputEncoding
+        [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
+        $wslOutput = wsl --list --quiet
+        [Console]::OutputEncoding = $originalEncoding
+        return ($wslOutput -split "`n" | Where-Object { $_.Trim() -ne "" })
+    }
+    $wslImages = Get-WSLImages
+
+    if ($wslImages.Count -le 2) {
+        # If there are two or fewer WSL images, load the default one
+        try {
+            $process = Start-Process -FilePath "wsl" -PassThru
+            Show-Notification -Title "WSL Loaded" -Message "Default WSL distribution has been loaded." -Icon Info
+        } catch {
+            Show-Notification -Title "Error" -Message "An error occurred while loading the default WSL distribution: $_" -Icon Error
+        }
+    }
+    else {
+        # If there are three or more WSL images, show the list
+        $wslListForm = New-Object System.Windows.Forms.Form
+        $wslListForm.Text = "WSL Distributions"
+        $wslListForm.Size = New-Object System.Drawing.Size(400, 300)
+        $wslListForm.StartPosition = "CenterScreen"
+        $wslListForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+
+        $label = New-Object System.Windows.Forms.Label
+        $label.Location = New-Object System.Drawing.Point(10, 10)
+        $label.Size = New-Object System.Drawing.Size(380, 20)
+        $label.Text = "Double-click a WSL distribution to load:"
+        $label.ForeColor = [System.Drawing.Color]::White
+        $wslListForm.Controls.Add($label)
+
+        $listBox = New-Object System.Windows.Forms.ListBox
+        $listBox.Location = New-Object System.Drawing.Point(10, 40)
+        $listBox.Size = New-Object System.Drawing.Size(360, 200)
+        $listBox.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 109)
+        $listBox.ForeColor = [System.Drawing.Color]::White
+        $listBox.Font = New-Object System.Drawing.Font("Arial", 12)
+        $wslListForm.Controls.Add($listBox)
+
+        foreach ($image in $wslImages) {
+            $listBox.Items.Add($image)
+        }
+
+        $listBox.Add_DoubleClick({
+            $selectedImage = $listBox.SelectedItem
+            if ($selectedImage) {
+                $wslListForm.Close()
+                try {
+                    $process = Start-Process -FilePath "wsl" -ArgumentList "-d", $selectedImage  -PassThru
+                    Show-Notification -Title "WSL Distribution Loaded" -Message "WSL distribution '$selectedImage' has been loaded." -Icon Info
+                } catch {
+                    Show-Notification -Title "Error" -Message "An error occurred while loading WSL distribution: $_" -Icon Error
+                }
+            }
+        })
+
+        $wslListForm.ShowDialog()
+    }
+}
+
 
 
 $action2 = {
@@ -401,6 +439,11 @@ $action4 = {
 }
 
 
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
 
 $action5 = {
     function Get-WSLImages {
