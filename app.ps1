@@ -1345,6 +1345,65 @@ foreach ($label in $categoryLabels) {
  # Show the main form
 $mainForm.ShowDialog()
 
+
+
+$aboutMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$aboutMenuItem.Text = "About"
+$aboutMenuItem.Add_Click({
+    $aboutForm = New-Object System.Windows.Forms.Form
+    $aboutForm.Text = "About WEnix Companion"
+    $aboutForm.Size = New-Object System.Drawing.Size(400, 300)
+    $aboutForm.StartPosition = "CenterScreen"
+    $aboutForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+
+    $titleLabel = New-Object System.Windows.Forms.Label
+    $titleLabel.Location = New-Object System.Drawing.Point(10, 20)
+    $titleLabel.Size = New-Object System.Drawing.Size(380, 30)
+    $titleLabel.Text = "WEnix Companion"
+    $titleLabel.Font = New-Object System.Drawing.Font("Arial", 16, [System.Drawing.FontStyle]::Bold)
+    $titleLabel.ForeColor = [System.Drawing.Color]::White
+    $titleLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $aboutForm.Controls.Add($titleLabel)
+
+    $versionLabel = New-Object System.Windows.Forms.Label
+    $versionLabel.Location = New-Object System.Drawing.Point(10, 60)
+    $versionLabel.Size = New-Object System.Drawing.Size(380, 20)
+    $versionLabel.Text = "Version 1.0.0.0.0"
+    $versionLabel.Font = New-Object System.Drawing.Font("Arial", 10, [System.Drawing.FontStyle]::Regular)
+    $versionLabel.ForeColor = [System.Drawing.Color]::White
+    $versionLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $aboutForm.Controls.Add($versionLabel)
+
+    $descriptionLabel = New-Object System.Windows.Forms.Label
+    $descriptionLabel.Location = New-Object System.Drawing.Point(10, 100)
+    $descriptionLabel.Size = New-Object System.Drawing.Size(360, 90)
+    $descriptionLabel.Text = "This tool provides a user-friendly interface for managing Windows Subsystem for Linux (WSL) WEnix Image. It allows you to install, remove, and manage your WSL WEnix environments with ease."
+    $descriptionLabel.Font = New-Object System.Drawing.Font("Arial", 10)
+    $descriptionLabel.ForeColor = [System.Drawing.Color]::White
+    $descriptionLabel.TextAlign = [System.Drawing.ContentAlignment]::TopLeft
+    $aboutForm.Controls.Add($descriptionLabel)
+
+    $copyrightLabel = New-Object System.Windows.Forms.Label
+    $copyrightLabel.Location = New-Object System.Drawing.Point(10, 190)
+    $copyrightLabel.Size = New-Object System.Drawing.Size(380, 20)
+    $copyrightLabel.Text = "© 2024 Toronto Dominion DX Team"
+    $copyrightLabel.Font = New-Object System.Drawing.Font("Arial", 8, [System.Drawing.FontStyle]::Bold)
+    $copyrightLabel.ForeColor = [System.Drawing.Color]::White
+    $copyrightLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $aboutForm.Controls.Add($copyrightLabel)
+
+    $okButton = New-Object System.Windows.Forms.Button
+    $okButton.Location = New-Object System.Drawing.Point(150, 220)
+    $okButton.Size = New-Object System.Drawing.Size(100, 30)
+    $okButton.Text = "OK"
+    $okButton.BackColor = [System.Drawing.Color]::White
+    $okButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $okButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $okButton.Add_Click({ $aboutForm.Close() })
+    $aboutForm.Controls.Add($okButton)
+
+    $aboutForm.ShowDialog()
+})
  
 
 
