@@ -241,202 +241,97 @@ $action3 = {
 
 
 $action4 = {
-    $wslBackupForm = New-Object System.Windows.Forms.Form
-    $wslBackupForm.Text = "WSL Export"
-    $wslBackupForm.Size = New-Object System.Drawing.Size(600, 650)
-    $wslBackupForm.StartPosition = "CenterScreen"
-    $wslBackupForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
-
-    $label = New-Object System.Windows.Forms.Label
-    $label.Location = New-Object System.Drawing.Point(10, 20)
-    $label.Size = New-Object System.Drawing.Size(580, 20)
-    $label.Text = "Available WSL Images (double-click to select):"
-    $label.ForeColor = [System.Drawing.Color]::White
-    $wslBackupForm.Controls.Add($label)
-
-    $dataGridView = New-Object System.Windows.Forms.DataGridView
-    $dataGridView.Location = New-Object System.Drawing.Point(10, 50)
-    $dataGridView.Size = New-Object System.Drawing.Size(580, 150)
-    $dataGridView.ColumnCount = 1
-    $dataGridView.Columns[0].Name = "WSL Images"
-    $dataGridView.AutoSizeColumnsMode = [System.Windows.Forms.DataGridViewAutoSizeColumnsMode]::Fill
-    $dataGridView.ReadOnly = $true
-    $dataGridView.AllowUserToAddRows = $false
-    $dataGridView.AllowUserToDeleteRows = $false
-    $dataGridView.AllowUserToResizeRows = $false
-    $dataGridView.RowHeadersVisible = $false
-    $dataGridView.SelectionMode = [System.Windows.Forms.DataGridViewSelectionMode]::FullRowSelect
-    $dataGridView.MultiSelect = $false
-    $dataGridView.BackgroundColor = [System.Drawing.Color]::FromArgb(0, 120, 109)
-    $dataGridView.ForeColor = [System.Drawing.Color]::White
-    $dataGridView.DefaultCellStyle.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 109)
-    $dataGridView.DefaultCellStyle.ForeColor = [System.Drawing.Color]::White
-    $dataGridView.DefaultCellStyle.SelectionBackColor = [System.Drawing.Color]::FromArgb(0, 100, 89)
-    $dataGridView.DefaultCellStyle.SelectionForeColor = [System.Drawing.Color]::White
-    $dataGridView.ColumnHeadersDefaultCellStyle.BackColor = [System.Drawing.Color]::FromArgb(0, 100, 89)
-    $dataGridView.ColumnHeadersDefaultCellStyle.ForeColor = [System.Drawing.Color]::White
-    $dataGridView.EnableHeadersVisualStyles = $false
-    $dataGridView.Add_CellMouseDoubleClick({
-        if ($_.RowIndex -ge 0) {
-            $selectedImageName = $dataGridView.Rows[$_.RowIndex].Cells[0].Value
-            $imageNameTextBox.Text = $selectedImageName
-        }
-    })
-    $wslBackupForm.Controls.Add($dataGridView)
+    $backupForm = New-Object System.Windows.Forms.Form
+    $backupForm.Text = "Backup WSL Image"
+    $backupForm.Size = New-Object System.Drawing.Size(400, 250)
+    $backupForm.StartPosition = "CenterScreen"
+    $backupForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
 
     $label1 = New-Object System.Windows.Forms.Label
-    $label1.Location = New-Object System.Drawing.Point(10, 210)
-    $label1.Size = New-Object System.Drawing.Size(580, 20)
-    $label1.Text = "Enter the name of the WSL image to export:"
+    $label1.Location = New-Object System.Drawing.Point(10, 20)
+    $label1.Size = New-Object System.Drawing.Size(380, 20)
+    $label1.Text = "Select a WSL image to backup:"
     $label1.ForeColor = [System.Drawing.Color]::White
-    $wslBackupForm.Controls.Add($label1)
+    $backupForm.Controls.Add($label1)
 
-    $imageNameTextBox = New-Object System.Windows.Forms.TextBox
-    $imageNameTextBox.Location = New-Object System.Drawing.Point(10, 240)
-    $imageNameTextBox.Size = New-Object System.Drawing.Size(580, 20)
-    $wslBackupForm.Controls.Add($imageNameTextBox)
+    $comboBox = New-Object System.Windows.Forms.ComboBox
+    $comboBox.Location = New-Object System.Drawing.Point(10, 50)
+    $comboBox.Size = New-Object System.Drawing.Size(360, 20)
+    $comboBox.DropDownStyle = [System.Windows.Forms.ComboBoxStyle]::DropDownList
+    $wslImages = Get-WSLImages
+    foreach ($image in $wslImages) {
+        $comboBox.Items.Add($image)
+    }
+    $backupForm.Controls.Add($comboBox)
 
     $label2 = New-Object System.Windows.Forms.Label
-    $label2.Location = New-Object System.Drawing.Point(10, 270)
-    $label2.Size = New-Object System.Drawing.Size(580, 20)
-    $label2.Text = "Enter export file name:"
+    $label2.Location = New-Object System.Drawing.Point(10, 90)
+    $label2.Size = New-Object System.Drawing.Size(380, 20)
+    $label2.Text = "Enter a name for the backup file (alphanumeric and hyphens only):"
     $label2.ForeColor = [System.Drawing.Color]::White
-    $wslBackupForm.Controls.Add($label2)
+    $backupForm.Controls.Add($label2)
 
-    $exportNameTextBox = New-Object System.Windows.Forms.TextBox
-    $exportNameTextBox.Location = New-Object System.Drawing.Point(10, 300)
-    $exportNameTextBox.Size = New-Object System.Drawing.Size(580, 20)
-    $wslBackupForm.Controls.Add($exportNameTextBox)
+    $textBox = New-Object System.Windows.Forms.TextBox
+    $textBox.Location = New-Object System.Drawing.Point(10, 120)
+    $textBox.Size = New-Object System.Drawing.Size(360, 20)
+    $backupForm.Controls.Add($textBox)
 
-    $label3 = New-Object System.Windows.Forms.Label
-    $label3.Location = New-Object System.Drawing.Point(10, 330)
-    $label3.Size = New-Object System.Drawing.Size(580, 20)
-    $label3.Text = "Select export location (leave blank for default C:\_WSL2):"
-    $label3.ForeColor = [System.Drawing.Color]::White
-    $wslBackupForm.Controls.Add($label3)
-
-    $exportLocationTextBox = New-Object System.Windows.Forms.TextBox
-    $exportLocationTextBox.Location = New-Object System.Drawing.Point(10, 360)
-    $exportLocationTextBox.Size = New-Object System.Drawing.Size(460, 20)
-    $wslBackupForm.Controls.Add($exportLocationTextBox)
-
-    Set-Watermark -TextBox $exportLocationTextBox -Watermark "Leave blank for default (C:\_WSL2)"
-
-    $browseButton = New-Object System.Windows.Forms.Button
-    $browseButton.Location = New-Object System.Drawing.Point(480, 358)
-    $browseButton.Size = New-Object System.Drawing.Size(110, 25)
-    $browseButton.Text = "Browse"
-    $browseButton.BackColor = [System.Drawing.Color]::White
-    $browseButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
-    $browseButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-    $browseButton.Add_Click({
-        $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
-        $folderBrowser.Description = "Select export location"
-        if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-            $exportLocationTextBox.Text = $folderBrowser.SelectedPath
-            $exportLocationTextBox.ForeColor = [System.Drawing.Color]::Black
-        }
-    })
-    $wslBackupForm.Controls.Add($browseButton)
-
-    $outputTextBox = New-Object System.Windows.Forms.TextBox
-    $outputTextBox.Location = New-Object System.Drawing.Point(10, 420)
-    $outputTextBox.Size = New-Object System.Drawing.Size(580, 150)
-    $outputTextBox.Multiline = $true
-    $outputTextBox.ScrollBars = "Vertical"
-    $outputTextBox.ReadOnly = $true
-    $outputTextBox.Font = New-Object System.Drawing.Font("Consolas", 10)
-    $outputTextBox.ForeColor = [System.Drawing.Color]::White
-    $outputTextBox.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 109)
-    $wslBackupForm.Controls.Add($outputTextBox)
-
-    $executeButton = New-Object System.Windows.Forms.Button
-    $executeButton.Location = New-Object System.Drawing.Point(10, 390)
-    $executeButton.Size = New-Object System.Drawing.Size(580, 30)
-    $executeButton.Text = "Export WSL Image"
-    $executeButton.BackColor = [System.Drawing.Color]::White
-    $executeButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
-    $executeButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-    $executeButton.Add_Click({
-        $selectedImage = $imageNameTextBox.Text.Trim()
-        $exportName = $exportNameTextBox.Text.Trim()
-        $exportLocation = $exportLocationTextBox.Text.Trim()
-        
-        $outputTextBox.Clear()
-        $outputTextBox.AppendText("Selected Image: $selectedImage`r`nExport Name: $exportName`r`n")
-        
-        if ($selectedImage -and $exportName) {
-            if (-not $exportName.EndsWith(".tar")) {
-                $exportName += ".tar"
-            }
-            
-            if ($exportLocation -eq "" -or $exportLocation -eq "Leave blank for default (C:\_WSL2)") {
-                $exportLocation = "C:\_WSL2"
-            }
-            
-            $exportPath = Join-Path $exportLocation $exportName
-            
-            $outputTextBox.AppendText("Export Path: $exportPath`r`n")
-            
-            try {
-                if (-not (Test-Path $exportLocation)) {
-                    New-Item -ItemType Directory -Path $exportLocation | Out-Null
-                    $outputTextBox.AppendText("Created directory: $exportLocation`r`n")
-                }
-
-                $command = "wsl.exe --export `"$selectedImage`" `"$exportPath`""
-                $outputTextBox.AppendText("Executing command: $command`r`n")
-
-                $process = Start-Process -FilePath "wsl.exe" -ArgumentList "--export", $selectedImage, $exportPath -NoNewWindow -Wait -PassThru -RedirectStandardOutput "C:\_WSL2\export_output.log" -RedirectStandardError "C:\_WSL2\export_error.log"
-                
-                $outputTextBox.AppendText("Process Exit Code: $($process.ExitCode)`r`n")
-                
-                $stdout = Get-Content "C:\_WSL2\export_output.log" -Raw
-                $stderr = Get-Content "C:\_WSL2\export_error.log" -Raw
-                
-                $outputTextBox.AppendText("Standard Output: $stdout`r`n")
-                $outputTextBox.AppendText("Standard Error: $stderr`r`n")
-
-                if ($process.ExitCode -eq 0) {
-                    $outputTextBox.AppendText("Export successful.`r`n")
-                    [System.Windows.Forms.MessageBox]::Show("WSL Image $selectedImage exported successfully to $exportPath", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-                } else {
-                    $outputTextBox.AppendText("Export failed.`r`n")
-                    [System.Windows.Forms.MessageBox]::Show("Failed to export WSL Image. Exit code: $($process.ExitCode)`r`nError: $stderr", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-                }
-            }
-            catch {
-                $outputTextBox.AppendText("Exception occurred: $_`r`n")
-                [System.Windows.Forms.MessageBox]::Show("Error executing command: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-            }
+    # Add KeyPress event to prevent special characters and spaces
+    $textBox.Add_KeyPress({
+        if (($_.KeyChar -match '[a-zA-Z0-9-]') -or $_.KeyChar -eq [char]8) {
+            # Allow the character (alphanumeric, hyphen, or backspace)
         } else {
-            $outputTextBox.AppendText("Missing information. Please enter an image name and an export name.`r`n")
-            [System.Windows.Forms.MessageBox]::Show("Please enter a WSL image name and an export file name.", "Missing Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+            # Prevent the character from being entered
+            $_.Handled = $true
         }
     })
-    $wslBackupForm.Controls.Add($executeButton)
 
-    $wslBackupForm.Add_Shown({
+    $backupButton = New-Object System.Windows.Forms.Button
+    $backupButton.Location = New-Object System.Drawing.Point(10, 160)
+    $backupButton.Size = New-Object System.Drawing.Size(360, 30)
+    $backupButton.Text = "Backup WSL Image"
+    $backupButton.BackColor = [System.Drawing.Color]::White
+    $backupButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $backupButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $backupButton.Add_Click({
+        $selectedImage = $comboBox.SelectedItem
+        $backupName = $textBox.Text.Trim()
+
+        if (-not $selectedImage) {
+            [System.Windows.Forms.MessageBox]::Show("Please select a WSL image to backup.", "No Selection", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+            return
+        }
+
+        if (-not ($backupName -match '^[a-zA-Z0-9-]+$')) {
+            [System.Windows.Forms.MessageBox]::Show("Invalid backup name. Please use only alphanumeric characters and hyphens.", "Invalid Input", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+            return
+        }
+
+        $backupPath = "C:\WSLBackups"
+        if (-not (Test-Path $backupPath)) {
+            New-Item -ItemType Directory -Path $backupPath | Out-Null
+        }
+
+        $backupFile = Join-Path $backupPath "$backupName.tar"
+
         try {
-            $originalEncoding = [Console]::OutputEncoding
-            [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
-            $wslOutput = wsl --list --quiet
-            [Console]::OutputEncoding = $originalEncoding
+            $process = Start-Process -FilePath "wsl" -ArgumentList "--export", $selectedImage, $backupFile -NoNewWindow -Wait -PassThru
 
-            $wslLines = $wslOutput -split "`n" | Where-Object { $_.Trim() -ne "" }
-            foreach ($image in $wslLines) {
-                $dataGridView.Rows.Add($image.Trim())
+            if ($process.ExitCode -eq 0) {
+                [System.Windows.Forms.MessageBox]::Show("WSL image '$selectedImage' has been successfully backed up to '$backupFile'.", "Backup Complete", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                $backupForm.Close()
+            } else {
+                [System.Windows.Forms.MessageBox]::Show("Failed to backup WSL image. Exit code: $($process.ExitCode)", "Backup Failed", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             }
-        }
-        catch {
-            $errorMessage = $_.Exception.Message
-            $outputTextBox.AppendText("Error retrieving WSL images: $errorMessage`r`n")
-            [System.Windows.Forms.MessageBox]::Show("Error retrieving WSL images: $errorMessage", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        } catch {
+            [System.Windows.Forms.MessageBox]::Show("An error occurred during WSL image backup: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     })
+    $backupForm.Controls.Add($backupButton)
 
-    $wslBackupForm.ShowDialog()
+    $backupForm.ShowDialog()
 }
+
 
 
 Add-Type -AssemblyName System.Windows.Forms
