@@ -1,3 +1,4 @@
+
 function Get-WSLImages {
     $originalEncoding = [Console]::OutputEncoding
     [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
@@ -1404,6 +1405,49 @@ $aboutMenuItem.Add_Click({
 
     $aboutForm.ShowDialog()
 })
+
+
+# Action for Button 3, Launch WEnix VPNKIT
+$action3 = {
+    try {
+        # Check if wsl-vpnkit is already running
+        $runningDistros = wsl --list --verbose
+        if ($runningDistros -match "wsl-vpnkit") {
+            Show-Notification -Title "WEnix-VPNKIT" -Message "WEnix-VPNKIT is already running." -Icon Info
+        } else {
+            # Start wsl-vpnkit in the background
+            Start-Process -FilePath "wsl.exe" -ArgumentList "-d", "wsl-vpnkit", "service", "wsl-vpnkit", "start" -NoNewWindow -PassThru
+
+            # Show notification immediately
+            Show-Notification -Title "WEnix-VPNKIT" -Message "WEnix-VPNKIT service start initiated. It may take a moment to fully start." -Icon Info
+        }
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show("Error executing command: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+}
  
+
+
+# Action for Button 3, Launch WEnix VPNKIT
+$action3 = {
+    try {
+        # Check if wsl-vpnkit is already running
+        $runningDistros = wsl --list --verbose | Select-String "Running"
+        if ($runningDistros -match "wsl-vpnkit") {
+            Show-Notification -Title "WEnix-VPNKIT" -Message "WEnix-VPNKIT is already running." -Icon Info
+        } else {
+            # Start wsl-vpnkit
+            $result = Start-Process -FilePath "wsl.exe" -ArgumentList "-d", "wsl-vpnkit", "service", "wsl-vpnkit", "start" -NoNewWindow -Wait -PassThru
+            if ($result.ExitCode -eq 0) {
+                Show-Notification -Title "WEnix-VPNKIT" -Message "WEnix-VPNKIT service started successfully." -Icon Info
+            } else {
+                [System.Windows.Forms.MessageBox]::Show("Failed to start wsl-vpnkit service. Exit code: " + $result.ExitCode, "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+        }
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show("Error executing command: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+}
+
 
 
