@@ -1451,3 +1451,128 @@ $action3 = {
 
 
 
+
+$action9 = {
+    $statusForm = New-Object System.Windows.Forms.Form
+    $statusForm.Text = "WEnix Image Status"
+    $statusForm.Size = New-Object System.Drawing.Size(600, 480)
+    $statusForm.StartPosition = "CenterScreen"
+    $statusForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 145)
+
+    $listView = New-Object System.Windows.Forms.ListView
+    $listView.Location = New-Object System.Drawing.Point(10, 10)
+    $listView.Size = New-Object System.Drawing.Size(565, 180)
+    $listView.View = [System.Windows.Forms.View]::Details
+    $listView.FullRowSelect = $true
+    $listView.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 109)
+    $listView.ForeColor = [System.Drawing.Color]::White
+    $listView.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+
+    $listView.Columns.Add("Distribution", 300)
+    $listView.Columns.Add("Size", 100)
+
+    $statusForm.Controls.Add($listView)
+
+    $wslImages = Get-WSLImages
+
+    foreach ($image in $wslImages) {
+        $size = wsl -d $image -- df -h / | Select-Object -Last 1 | ForEach-Object { ($_ -split '\s+')[2] }
+        $listViewItem = New-Object System.Windows.Forms.ListViewItem($image)
+        $listViewItem.SubItems.Add($size)
+        $listView.Items.Add($listViewItem)
+    }
+
+    $diskSpaceLabel = New-Object System.Windows.Forms.Label
+    $diskSpaceLabel.Location = New-Object System.Drawing.Point(10, 200)
+    $diskSpaceLabel.Size = New-Object System.Drawing.Size(565, 20)
+    $diskSpaceLabel.ForeColor = [System.Drawing.Color]::White
+    $diskSpaceLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+    $diskSpace = Get-PSDrive C | Select-Object -ExpandProperty Free
+    $diskSpaceGB = [math]::Round($diskSpace / 1GB, 2)
+    $diskSpaceLabel.Text = "Available disk space: $diskSpaceGB GB"
+    $statusForm.Controls.Add($diskSpaceLabel)
+
+    $outputTextBox = New-Object System.Windows.Forms.TextBox
+    $outputTextBox.Location = New-Object System.Drawing.Point(10, 230)
+    $outputTextBox.Size = New-Object System.Drawing.Size(565, 150)
+    $outputTextBox.Multiline = $true
+    $outputTextBox.ScrollBars = "Vertical"
+    $outputTextBox.ReadOnly = $true
+    $outputTextBox.Font = New-Object System.Drawing.Font("Consolas", 10)
+    $outputTextBox.ForeColor = [System.Drawing.Color]::White
+    $outputTextBox.BackColor = [System.Drawing.Color]::FromArgb(0, 100, 89)
+    $statusForm.Controls.Add($outputTextBox)
+
+    $setSparseButton = New-Object System.Windows.Forms.Button
+    $setSparseButton.Location = New-Object System.Drawing.Point(10, 390)
+    $setSparseButton.Size = New-Object System.Drawing.Size(180, 30)
+    $setSparseButton.Text = "Set Sparse VHD"
+    $setSparseButton.BackColor = [System.Drawing.Color]::White
+    $setSparseButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $setSparseButton.Add_Click({
+        $selectedItems = $listView.SelectedItems
+        if ($selectedItems.Count -gt 0) {
+            $distro = $selectedItems[0].Text
+            
+            $result = [System.Windows.Forms.MessageBox]::Show(
+                "Do you want to set Sparse VHD for $distro?",
+                "Confirm Sparse VHD Change",
+                [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                [System.Windows.Forms.MessageBoxIcon]::Question
+            )
+            
+            if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+                $outputTextBox.AppendText("Shutting down WSL...`r`n")
+                $shutdownProcess = Start-Process -FilePath "wsl.exe" -ArgumentList "--shutdown" -NoNewWindow -Wait -PassThru
+                if ($shutdownProcess.ExitCode -eq 0) {
+                    $outputTextBox.AppendText("WSL shut down successfully.`r`n")
+                    $outputTextBox.AppendText("Setting Sparse VHD for $distro...`r`n")
+                    $process = Start-Process -FilePath "wsl.exe" -ArgumentList "--manage", $distro, "--set-sparse", "true" -NoNewWindow -Wait -PassThru
+                    if ($process.ExitCode -eq 0) {
+                        $outputTextBox.AppendText("Sparse VHD setting updated successfully.`r`n")
+                    } else {
+                        $outputTextBox.AppendText("Failed to update Sparse VHD setting.`r`n")
+                    }
+                } else {
+                    $outputTextBox.AppendText("Failed to shut down WSL.`r`n")
+                }
+            }
+        } else {
+            $outputTextBox.AppendText("Please select a WEnix image first.`r`n")
+        }
+    })
+    $statusForm.Controls.Add($setSparseButton)
+
+    $refreshButton = New-Object System.Windows.Forms.Button
+    $refreshButton.Location = New-Object System.Drawing.Point(200, 390)
+    $refreshButton.Size = New-Object System.Drawing.Size(100, 30)
+    $refreshButton.Text = "Refresh"
+    $refreshButton.BackColor = [System.Drawing.Color]::White
+    $refreshButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $refreshButton.Add_Click({
+        $listView.Items.Clear()
+        $outputTextBox.AppendText("Refreshing WEnix image list...`r`n")
+        foreach ($image in $wslImages) {
+            $size = wsl -d $image -- df -h / | Select-Object -Last 1 | ForEach-Object { ($_ -split '\s+')[2] }
+            $listViewItem = New-Object System.Windows.Forms.ListViewItem($image)
+            $listViewItem.SubItems.Add($size)
+            $listView.Items.Add($listViewItem)
+        }
+        $diskSpace = Get-PSDrive C | Select-Object -ExpandProperty Free
+        $diskSpaceGB = [math]::Round($diskSpace / 1GB, 2)
+        $diskSpaceLabel.Text = "Available disk space: $diskSpaceGB GB"
+        $outputTextBox.AppendText("Refresh complete.`r`n")
+    })
+    $statusForm.Controls.Add($refreshButton)
+
+    $closeButton = New-Object System.Windows.Forms.Button
+    $closeButton.Location = New-Object System.Drawing.Point(475, 390)
+    $closeButton.Size = New-Object System.Drawing.Size(100, 30)
+    $closeButton.Text = "Close"
+    $closeButton.BackColor = [System.Drawing.Color]::White
+    $closeButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $closeButton.Add_Click({ $statusForm.Close() })
+    $statusForm.Controls.Add($closeButton)
+
+    $statusForm.ShowDialog()
+}
