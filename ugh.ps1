@@ -760,3 +760,115 @@ $action9 = {
     $statusForm.ShowDialog()
 }
 
+
+$action9 = {
+    $statusForm = New-Object System.Windows.Forms.Form
+    $statusForm.Text = "WEnix Image Status and Disk Space"
+    $statusForm.Size = New-Object System.Drawing.Size(800, 700)  # Increased height for new labels
+    $statusForm.StartPosition = "CenterScreen"
+    $statusForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+
+    # Instruction label for sparse VHD
+    $sparseInstructionLabel = New-Object System.Windows.Forms.Label
+    $sparseInstructionLabel.Location = New-Object System.Drawing.Point(10, 10)
+    $sparseInstructionLabel.Size = New-Object System.Drawing.Size(765, 20)
+    $sparseInstructionLabel.Text = "Click on the image you want to shrink with sparse VHD, then click the 'Set Sparse VHD' button:"
+    $sparseInstructionLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+    $sparseInstructionLabel.ForeColor = [System.Drawing.Color]::White
+    $statusForm.Controls.Add($sparseInstructionLabel)
+
+    $listView = New-Object System.Windows.Forms.ListView
+    $listView.Location = New-Object System.Drawing.Point(10, 35)  # Moved down to accommodate new label
+    $listView.Size = New-Object System.Drawing.Size(765, 180)
+    $listView.View = [System.Windows.Forms.View]::Details
+    $listView.FullRowSelect = $true
+    $listView.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 109)
+    $listView.ForeColor = [System.Drawing.Color]::White
+    $listView.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+
+    $listView.Columns.Add("Distribution", 150)
+    $listView.Columns.Add("Size", 80)
+    $listView.Columns.Add("Location", 520)
+
+    $statusForm.Controls.Add($listView)
+
+    $outputTextBox = New-Object System.Windows.Forms.TextBox
+    $outputTextBox.Location = New-Object System.Drawing.Point(10, 225)
+    $outputTextBox.Size = New-Object System.Drawing.Size(765, 150)
+    $outputTextBox.Multiline = $true
+    $outputTextBox.ScrollBars = "Vertical"
+    $outputTextBox.ReadOnly = $true
+    $outputTextBox.Font = New-Object System.Drawing.Font("Consolas", 10)
+    $outputTextBox.ForeColor = [System.Drawing.Color]::White
+    $outputTextBox.BackColor = [System.Drawing.Color]::FromArgb(0, 100, 89)
+    $statusForm.Controls.Add($outputTextBox)
+
+    # Disk space information label
+    $diskSpaceLabel = New-Object System.Windows.Forms.Label
+    $diskSpaceLabel.Location = New-Object System.Drawing.Point(10, 385)
+    $diskSpaceLabel.Size = New-Object System.Drawing.Size(765, 20)
+    $diskSpaceLabel.Text = "Disk space available:"
+    $diskSpaceLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+    $diskSpaceLabel.ForeColor = [System.Drawing.Color]::White
+    $statusForm.Controls.Add($diskSpaceLabel)
+
+    $diskSpaceListView = New-Object System.Windows.Forms.ListView
+    $diskSpaceListView.Location = New-Object System.Drawing.Point(10, 410)
+    $diskSpaceListView.Size = New-Object System.Drawing.Size(765, 150)
+    $diskSpaceListView.View = [System.Windows.Forms.View]::Details
+    $diskSpaceListView.FullRowSelect = $true
+    $diskSpaceListView.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 109)
+    $diskSpaceListView.ForeColor = [System.Drawing.Color]::White
+    $diskSpaceListView.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+
+    $diskSpaceListView.Columns.Add("Drive", 100)
+    $diskSpaceListView.Columns.Add("Total Space", 150)
+    $diskSpaceListView.Columns.Add("Free Space", 150)
+    $diskSpaceListView.Columns.Add("Free Space %", 150)
+
+    $statusForm.Controls.Add($diskSpaceListView)
+
+
+
+    $setSparseButton = New-Object System.Windows.Forms.Button
+    $setSparseButton.Location = New-Object System.Drawing.Point(10, 570)
+    $setSparseButton.Size = New-Object System.Drawing.Size(180, 30)
+    $setSparseButton.Text = "Set Sparse VHD"
+    $setSparseButton.BackColor = [System.Drawing.Color]::White
+    $setSparseButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    # ... (rest of the button setup remains the same)
+
+    $refreshButton = New-Object System.Windows.Forms.Button
+    $refreshButton.Location = New-Object System.Drawing.Point(200, 570)
+    $refreshButton.Size = New-Object System.Drawing.Size(100, 30)
+    $refreshButton.Text = "Refresh"
+    $refreshButton.BackColor = [System.Drawing.Color]::White
+    $refreshButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+
+    $setSparseButton = New-Object System.Windows.Forms.Button
+    $setSparseButton.Location = New-Object System.Drawing.Point(10, 570)
+    $setSparseButton.Size = New-Object System.Drawing.Size(180, 30)
+    $setSparseButton.Text = "Set Sparse VHD"
+    $setSparseButton.BackColor = [System.Drawing.Color]::White
+    $setSparseButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    # ... (rest of the button setup remains the same)
+
+    $refreshButton = New-Object System.Windows.Forms.Button
+    $refreshButton.Location = New-Object System.Drawing.Point(200, 570)
+    $refreshButton.Size = New-Object System.Drawing.Size(100, 30)
+    $refreshButton.Text = "Refresh"
+    $refreshButton.BackColor = [System.Drawing.Color]::White
+    $refreshButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    # ... (rest of the button setup remains the same)
+
+    $closeButton = New-Object System.Windows.Forms.Button
+    $closeButton.Location = New-Object System.Drawing.Point(675, 570)
+    $closeButton.Size = New-Object System.Drawing.Size(100, 30)
+    $closeButton.Text = "Close"
+    $closeButton.BackColor = [System.Drawing.Color]::White
+    $closeButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $closeButton.Add_Click({ $statusForm.Close() })
+    $statusForm.Controls.Add($closeButton)
+
+    $statusForm.ShowDialog()
+
