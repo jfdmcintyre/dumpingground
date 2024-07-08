@@ -1,223 +1,193 @@
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
-
-# Create the main form
-$mainForm = New-Object System.Windows.Forms.Form
-$mainForm.Text = "Multi-Function Tool"
-$mainForm.Size = New-Object System.Drawing.Size(600, 600)
-$mainForm.StartPosition = "CenterScreen"
-$mainForm.BackColor = [System.Drawing.Color]::FromArgb(240, 240, 240)
-
-# Function to create a button with an image
-function New-Button {
-    param ($x, $y, $text, $imagePath)
-    $button = New-Object System.Windows.Forms.Button
-    $button.Location = New-Object System.Drawing.Point($x, $y)
-    $button.Size = New-Object System.Drawing.Size(100, 100)
-    $button.Text = $text
-    $button.BackColor = [System.Drawing.Color]::White
-    $button.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
-    $button.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-    $button.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
-    $button.Add_Click({ Open-FunctionWindow $text })
-
-    # Load and set the image
-    if (Test-Path $imagePath) {
-        $image = [System.Drawing.Image]::FromFile($imagePath)
-    } elseif ($imagePath -match '^https?://') {
-        $webClient = New-Object System.Net.WebClient
-        $imageBytes = $webClient.DownloadData($imagePath)
-        $memoryStream = New-Object System.IO.MemoryStream($imageBytes, 0, $imageBytes.Length)
-        $image = [System.Drawing.Image]::FromStream($memoryStream)
-    } else {
-        Write-Warning "Image not found: $imagePath"
-        return $button
-    }
-
-    $button.Image = $image
-    $button.ImageAlign = [System.Drawing.ContentAlignment]::TopCenter
-    $button.TextAlign = [System.Drawing.ContentAlignment]::BottomCenter
-    $button.TextImageRelation = [System.Windows.Forms.TextImageRelation]::ImageAboveText
-
-    return $button
-}
-
-# Function to create a category label
-function New-CategoryLabel {
-    param ($x, $y, $text)
-    $label = New-Object System.Windows.Forms.Label
-    $label.Location = New-Object System.Drawing.Point($x, $y)
-    $label.Size = New-Object System.Drawing.Size(340, 30)
-    $label.Text = $text
-    $label.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Bold)
-    $label.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
-    return $label
-}
-
-# Create 9 buttons with specified images, separated into 3 categories
-$buttons = @(
-    # Category 1
-    (Create-Button 50 50 "Function 1" "C:\path\to\image1.jpg"),
-    (Create-Button 170 50 "Function 2" "C:\path\to\image2.jpg"),
-    (Create-Button 290 50 "Function 3" "C:\path\to\image3.jpg"),
-    # Category 2
-    (Create-Button 50 200 "Function 4" "C:\path\to\image4.jpg"),
-    (Create-Button 170 200 "Function 5" "C:\path\to\image5.jpg"),
-    (Create-Button 290 200 "Function 6" "C:\path\to\image6.jpg"),
-    # Category 3
-    (Create-Button 50 350 "Function 7" "C:\path\to\image7.jpg"),
-    (Create-Button 170 350 "Function 8" "C:\path\to\image8.jpg"),
-    (Create-Button 290 350 "Function 9" "C:\path\to\image9.jpg")
-)
-
-# Create category labels
-$categoryLabels = @(
-    (Create-CategoryLabel 50 10 "Category 1"),
-    (Create-CategoryLabel 50 160 "Category 2"),
-    (Create-CategoryLabel 50 310 "Category 3")
-)
-
-# Add buttons and labels to the main form
-foreach ($button in $buttons) {
-    $mainForm.Controls.Add($button)
-}
-foreach ($label in $categoryLabels) {
-    $mainForm.Controls.Add($label)
-}
-
-# Function to open a new window for each function
-function Open-FunctionWindow {
-    param ($functionName)
-    $form = New-Object System.Windows.Forms.Form
-    $form.Text = $functionName
-    $form.Size = New-Object System.Drawing.Size(300, 200)
-    $form.StartPosition = "CenterScreen"
-    $form.BackColor = [System.Drawing.Color]::FromArgb(240, 240, 240)
-
-    $label = New-Object System.Windows.Forms.Label
-    $label.Location = New-Object System.Drawing.Point(10, 20)
-    $label.Size = New-Object System.Drawing.Size(280, 40)
-    $label.Text = "This is the window for $functionName"
-    $label.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
-    $label.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
-    $form.Controls.Add($label)
-
-    # Add specific functionality for each function here
-    # For example:
-    switch ($functionName) {
-        "Function 1" { Function1 $form }
-        "Function 2" { Function2 $form }
-        # ... Add cases for Functions 3-9
-    }
-
-    $form.ShowDialog()
-}
-
-# Example functions for each button
-function Function1 {
-    param ($form)
-    $button = New-Object System.Windows.Forms.Button
-    $button.Location = New-Object System.Drawing.Point(10, 70)
-    $button.Size = New-Object System.Drawing.Size(100, 30)
-    $button.Text = "Get Date"
-    $button.BackColor = [System.Drawing.Color]::White
-    $button.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
-    $button.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-    $button.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
-    $button.Add_Click({
-        [System.Windows.Forms.MessageBox]::Show((Get-Date), "Current Date and Time")
-    })
-    $form.Controls.Add($button)
-}
-
-function Function2 {
-    param ($form)
-    $textBox = New-Object System.Windows.Forms.TextBox
-    $textBox.Location = New-Object System.Drawing.Point(10, 70)
-    $textBox.Size = New-Object System.Drawing.Size(200, 20)
-    $form.Controls.Add($textBox)
-
-    $button = New-Object System.Windows.Forms.Button
-    $button.Location = New-Object System.Drawing.Point(10, 100)
-    $button.Size = New-Object System.Drawing.Size(100, 30)
-    $button.Text = "Uppercase"
-    $button.BackColor = [System.Drawing.Color]::White
-    $button.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
-    $button.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-    $button.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
-    $button.Add_Click({
-        $textBox.Text = $textBox.Text.ToUpper()
-    })
-    $form.Controls.Add($button)
-}
-
-# Add more functions for buttons 3-9 here
-
-# Show the main form
-$mainForm.ShowDialog()
-
-
-
-
-
 $action9 = {
-    Write-DebugLog "Executing Action 9: Show About Page" "INFO"
+    $statusForm = New-Object System.Windows.Forms.Form
+    $statusForm.Text = "WEnix Image Status"
+    $statusForm.Size = New-Object System.Drawing.Size(800, 450)
+    $statusForm.StartPosition = "CenterScreen"
+    $statusForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
 
-    $aboutForm = New-Object System.Windows.Forms.Form
-    $aboutForm.Text = "About WSL Management Tool"
-    $aboutForm.Size = New-Object System.Drawing.Size(400, 300)
-    $aboutForm.StartPosition = "CenterScreen"
-    $aboutForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
-    $aboutForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-    $aboutForm.MaximizeBox = $false
-    $aboutForm.MinimizeBox = $false
+    $listView = New-Object System.Windows.Forms.ListView
+    $listView.Location = New-Object System.Drawing.Point(10, 10)
+    $listView.Size = New-Object System.Drawing.Size(765, 180)
+    $listView.View = [System.Windows.Forms.View]::Details
+    $listView.FullRowSelect = $true
+    $listView.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 109)
+    $listView.ForeColor = [System.Drawing.Color]::White
+    $listView.Font = New-Object System.Drawing.Font("Segoe UI", 9)
 
-    $titleLabel = New-Object System.Windows.Forms.Label
-    $titleLabel.Location = New-Object System.Drawing.Point(10, 20)
-    $titleLabel.Size = New-Object System.Drawing.Size(380, 30)
-    $titleLabel.Text = "WSL Management Tool"
-    $titleLabel.Font = New-Object System.Drawing.Font("Arial", 16, [System.Drawing.FontStyle]::Bold)
-    $titleLabel.ForeColor = [System.Drawing.Color]::White
-    $titleLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-    $aboutForm.Controls.Add($titleLabel)
+    $listView.Columns.Add("Distribution", 150)
+    $listView.Columns.Add("Size", 80)
+    $listView.Columns.Add("Location", 520)
 
-    $versionLabel = New-Object System.Windows.Forms.Label
-    $versionLabel.Location = New-Object System.Drawing.Point(10, 60)
-    $versionLabel.Size = New-Object System.Drawing.Size(380, 20)
-    $versionLabel.Text = "Version 1.0"
-    $versionLabel.Font = New-Object System.Drawing.Font("Arial", 10)
-    $versionLabel.ForeColor = [System.Drawing.Color]::White
-    $versionLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-    $aboutForm.Controls.Add($versionLabel)
+    $statusForm.Controls.Add($listView)
 
-    $descriptionLabel = New-Object System.Windows.Forms.Label
-    $descriptionLabel.Location = New-Object System.Drawing.Point(10, 100)
-    $descriptionLabel.Size = New-Object System.Drawing.Size(360, 100)
-    $descriptionLabel.Text = "This tool provides a user-friendly interface for managing Windows Subsystem for Linux (WSL) distributions. It allows you to install, remove, and manage your WSL environments with ease."
-    $descriptionLabel.Font = New-Object System.Drawing.Font("Arial", 10)
-    $descriptionLabel.ForeColor = [System.Drawing.Color]::White
-    $descriptionLabel.TextAlign = [System.Drawing.ContentAlignment]::TopLeft
-    $aboutForm.Controls.Add($descriptionLabel)
+    # Function to get WSL image locations and sizes from registry
+    function Get-WSLImageDetails {
+        $details = @{}
+        $lxssPath = "Registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss"
+        if (Test-Path $lxssPath) {
+            Get-ChildItem -Path $lxssPath | ForEach-Object {
+                try {
+                    $distroName = $_.GetValue("DistributionName")
+                    $basePath = $_.GetValue("BasePath")
+                    
+                    # Define potential VHDX locations
+                    $potentialLocations = @(
+                        (Join-Path -Path $basePath -ChildPath "ext4.vhdx"),
+                        (Join-Path -Path "C:\_WSL2" -ChildPath "$distroName.vhdx"),
+                        (Join-Path -Path $env:USERPROFILE -ChildPath "AppData\Local\Packages\$distroName\LocalState\ext4.vhdx"),
+                        (Join-Path -Path "C:\_WSL2" -ChildPath "$distroName\ext4.vhdx")
+                    )
+                    
+                    $vhdxPath = $null
+                    foreach ($path in $potentialLocations) {
+                        if (Test-Path $path) {
+                            $vhdxPath = $path
+                            break
+                        }
+                    }
+                    
+                    if ($vhdxPath) {
+                        $size = (Get-Item $vhdxPath).length / 1GB
+                        $details[$distroName] = @{
+                            Location = $vhdxPath
+                            Size = [math]::Round($size, 2)
+                        }
+                    } else {
+                        $outputTextBox.AppendText("VHDX file not found for $distroName. Checked locations:`r`n")
+                        $potentialLocations | ForEach-Object { $outputTextBox.AppendText("  $_`r`n") }
+                    }
+                } catch {
+                    $outputTextBox.AppendText("Error processing $($_.Name): $_`r`n")
+                }
+            }
+        } else {
+            $outputTextBox.AppendText("LXSS registry path not found`r`n")
+        }
+        return $details
+    }
+    
+    
 
-    $copyrightLabel = New-Object System.Windows.Forms.Label
-    $copyrightLabel.Location = New-Object System.Drawing.Point(10, 210)
-    $copyrightLabel.Size = New-Object System.Drawing.Size(380, 20)
-    $copyrightLabel.Text = "© 2024 Your Company Name"
-    $copyrightLabel.Font = New-Object System.Drawing.Font("Arial", 8)
-    $copyrightLabel.ForeColor = [System.Drawing.Color]::White
-    $copyrightLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
-    $aboutForm.Controls.Add($copyrightLabel)
+    $wslImages = Get-WSLImages
+    $wslDetails = Get-WSLImageDetails
 
-    $okButton = New-Object System.Windows.Forms.Button
-    $okButton.Location = New-Object System.Drawing.Point(150, 240)
-    $okButton.Size = New-Object System.Drawing.Size(100, 30)
-    $okButton.Text = "OK"
-    $okButton.BackColor = [System.Drawing.Color]::White
-    $okButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
-    $okButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-    $okButton.Add_Click({ $aboutForm.Close() })
-    $aboutForm.Controls.Add($okButton)
+    $outputTextBox.AppendText("WSL Images found: $($wslImages.Count)`r`n")
+    $outputTextBox.AppendText("WSL Details retrieved: $($wslDetails.Count)`r`n")
 
-    Write-DebugLog "Showing About page" "INFO"
-    $aboutForm.ShowDialog()
+foreach ($image in $wslImages) {
+    $details = $wslDetails[$image]
+    if ($details) {
+        $location = $details.Location
+        $size = if ($details.Size -gt 0) { "$($details.Size) GB" } else { "Size unknown" }
+    } else {
+        $location = "Location not found"
+        $size = "Size unknown"
+    }
+    $outputTextBox.AppendText("Image: $image, Size: $size, Location: $location`r`n")
+    
+    $listViewItem = New-Object System.Windows.Forms.ListViewItem($image)
+    $listViewItem.SubItems.Add($size)
+    $listViewItem.SubItems.Add($location)
+    $listView.Items.Add($listViewItem)
+}
+
+
+    $diskSpaceLabel = New-Object System.Windows.Forms.Label
+    $diskSpaceLabel.Location = New-Object System.Drawing.Point(10, 200)
+    $diskSpaceLabel.Size = New-Object System.Drawing.Size(765, 20)
+    $diskSpaceLabel.ForeColor = [System.Drawing.Color]::White
+    $diskSpaceLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+    $diskSpace = Get-PSDrive C | Select-Object -ExpandProperty Free
+    $diskSpaceGB = [math]::Round($diskSpace / 1GB, 2)
+    $diskSpaceLabel.Text = "Available disk space: $diskSpaceGB GB"
+    $statusForm.Controls.Add($diskSpaceLabel)
+
+    $outputTextBox = New-Object System.Windows.Forms.TextBox
+    $outputTextBox.Location = New-Object System.Drawing.Point(10, 230)
+    $outputTextBox.Size = New-Object System.Drawing.Size(765, 150)
+    $outputTextBox.Multiline = $true
+    $outputTextBox.ScrollBars = "Vertical"
+    $outputTextBox.ReadOnly = $true
+    $outputTextBox.Font = New-Object System.Drawing.Font("Consolas", 10)
+    $outputTextBox.ForeColor = [System.Drawing.Color]::White
+    $outputTextBox.BackColor = [System.Drawing.Color]::FromArgb(0, 100, 89)
+    $statusForm.Controls.Add($outputTextBox)
+
+    $setSparseButton = New-Object System.Windows.Forms.Button
+    $setSparseButton.Location = New-Object System.Drawing.Point(10, 390)
+    $setSparseButton.Size = New-Object System.Drawing.Size(180, 30)
+    $setSparseButton.Text = "Set Sparse VHD"
+    $setSparseButton.BackColor = [System.Drawing.Color]::White
+    $setSparseButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $setSparseButton.Add_Click({
+        $selectedItems = $listView.SelectedItems
+        if ($selectedItems.Count -gt 0) {
+            $distro = $selectedItems[0].Text
+            
+            $result = [System.Windows.Forms.MessageBox]::Show(
+                "Do you want to set Sparse VHD for $distro?",
+                "Confirm Sparse VHD Change",
+                [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                [System.Windows.Forms.MessageBoxIcon]::Question
+            )
+            
+            if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+                $outputTextBox.AppendText("Shutting down WSL...`r`n")
+                $shutdownProcess = Start-Process -FilePath "wsl.exe" -ArgumentList "--shutdown" -NoNewWindow -Wait -PassThru
+                if ($shutdownProcess.ExitCode -eq 0) {
+                    $outputTextBox.AppendText("WSL shut down successfully.`r`n")
+                    $outputTextBox.AppendText("Setting Sparse VHD for $distro...`r`n")
+                    $process = Start-Process -FilePath "wsl.exe" -ArgumentList "--manage", $distro, "--set-sparse", "true" -NoNewWindow -Wait -PassThru
+                    if ($process.ExitCode -eq 0) {
+                        $outputTextBox.AppendText("Sparse VHD setting updated successfully.`r`n")
+                    } else {
+                        $outputTextBox.AppendText("Failed to update Sparse VHD setting.`r`n")
+                    }
+                } else {
+                    $outputTextBox.AppendText("Failed to shut down WSL.`r`n")
+                }
+            }
+        } else {
+            $outputTextBox.AppendText("Please select a WEnix image first.`r`n")
+        }
+    })
+    $statusForm.Controls.Add($setSparseButton)
+
+    $refreshButton = New-Object System.Windows.Forms.Button
+    $refreshButton.Location = New-Object System.Drawing.Point(200, 390)
+    $refreshButton.Size = New-Object System.Drawing.Size(100, 30)
+    $refreshButton.Text = "Refresh"
+    $refreshButton.BackColor = [System.Drawing.Color]::White
+    $refreshButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $refreshButton.Add_Click({
+        $listView.Items.Clear()
+        $outputTextBox.AppendText("Refreshing WEnix image list...`r`n")
+        $wslImages = Get-WSLImages
+        $wslDetails = Get-WSLImageDetails
+        foreach ($image in $wslImages) {
+            $details = $wslDetails[$image]
+            $location = $details.Location ?? "Location not found"
+            $size = $details.Size ?? "Size not found"
+            $listViewItem = New-Object System.Windows.Forms.ListViewItem($image)
+            $listViewItem.SubItems.Add("$size GB")
+            $listViewItem.SubItems.Add($location)
+            $listView.Items.Add($listViewItem)
+        }
+        $diskSpace = Get-PSDrive C | Select-Object -ExpandProperty Free
+        $diskSpaceGB = [math]::Round($diskSpace / 1GB, 2)
+        $diskSpaceLabel.Text = "Available disk space: $diskSpaceGB GB"
+        $outputTextBox.AppendText("Refresh complete.`r`n")
+    })
+    $statusForm.Controls.Add($refreshButton)
+
+    $closeButton = New-Object System.Windows.Forms.Button
+    $closeButton.Location = New-Object System.Drawing.Point(675, 390)
+    $closeButton.Size = New-Object System.Drawing.Size(100, 30)
+    $closeButton.Text = "Close"
+    $closeButton.BackColor = [System.Drawing.Color]::White
+    $closeButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $closeButton.Add_Click({ $statusForm.Close() })
+    $statusForm.Controls.Add($closeButton)
+
+    $statusForm.ShowDialog()
 }
