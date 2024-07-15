@@ -233,7 +233,6 @@ foreach ($image in $wslImages) {
 
 
 
-
 $executeButton.Add_Click({
     $selectedImage = $imageNameTextBox.Text.Trim()
     $exportName = $exportNameTextBox.Text.Trim()
