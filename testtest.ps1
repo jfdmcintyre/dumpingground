@@ -450,3 +450,23 @@ $executeButton.Add_Click({
         # Handling for missing information remains the same
     }
 })
+
+
+
+
+
+
+
+
+# Check available disk space
+$drive = Split-Path -Qualifier $installLocation
+$freeSpace = (Get-PSDrive $drive.TrimEnd(":")).Free
+$requiredSpace = (Get-Item $importPath).Length
+
+if ($freeSpace -lt $requiredSpace) {
+    $freeSpaceGB = [math]::Round($freeSpace / 1GB, 2)
+    $requiredSpaceGB = [math]::Round($requiredSpace / 1GB, 2)
+    $outputTextBox.AppendText("Not enough disk space. Available: $freeSpaceGB GB, Required: $requiredSpaceGB GB`r`n")
+    [System.Windows.Forms.MessageBox]::Show("Not enough disk space to import the WEnix image.`nAvailable: $freeSpaceGB GB`nRequired: $requiredSpaceGB GB", "Insufficient Disk Space", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+    return
+}
