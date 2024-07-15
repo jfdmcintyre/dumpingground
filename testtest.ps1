@@ -226,3 +226,81 @@ foreach ($image in $wslImages) {
 
   $statusForm.ShowDialog()
 }
+
+
+
+
+
+
+
+
+$executeButton.Add_Click({
+    $selectedImage = $imageNameTextBox.Text.Trim()
+    $exportName = $exportNameTextBox.Text.Trim()
+    $exportLocation = $exportLocationTextBox.Text.Trim()
+    $outputTextBox.Clear()
+    $outputTextBox.AppendText("Selected Image: $selectedImage`r`nExport Name: $exportName`r`n")
+
+    if ($selectedImage -and $exportName) {
+        if (-not $exportName.EndsWith(".tar")) {
+            $exportName += ".tar"
+        }
+        if ($exportLocation -eq "" -or $exportLocation -eq "Leave blank for default (C:\_WSL2)") {
+            $exportLocation = "C:\_WSL2"
+        }
+        
+        $exportPath = Join-Path $exportLocation $exportName
+        $outputTextBox.AppendText("Export Path: $exportPath`r`n")
+
+        # Check available disk space
+        $drive = Split-Path -Qualifier $exportPath
+        $freeSpace = (Get-PSDrive $drive.TrimEnd(":")).Free
+        $requiredSpace = (Get-ChildItem "\\wsl$\$selectedImage" -Recurse | Measure-Object -Property Length -Sum).Sum
+
+        if ($freeSpace -lt $requiredSpace) {
+            $freeSpaceGB = [math]::Round($freeSpace / 1GB, 2)
+            $requiredSpaceGB = [math]::Round($requiredSpace / 1GB, 2)
+            $outputTextBox.AppendText("Not enough disk space. Available: $freeSpaceGB GB, Required: $requiredSpaceGB GB`r`n")
+            [System.Windows.Forms.MessageBox]::Show("Not enough disk space to export the WEnix image.`nAvailable: $freeSpaceGB GB`nRequired: $requiredSpaceGB GB", "Insufficient Disk Space", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+            return
+        }
+
+        try {
+            if (-not (Test-Path $exportLocation)) {
+                New-Item -ItemType Directory -Path $exportLocation | Out-Null
+                $outputTextBox.AppendText("Created directory: $exportLocation`r`n")
+            }
+
+            $command = "wsl.exe --export `"$selectedImage`" `"$exportPath`""
+            $outputTextBox.AppendText("Executing command: $command`r`n")
+
+            Show-Notification -Title "Backup Started" -Message "WEnix Image $selectedImage is currently being backed up. This Process can take up to 5 minutes." -Icon info
+
+            $process = Start-Process -FilePath "wsl.exe" -ArgumentList "--export", "`"$selectedImage`"", "`"$exportPath`"" -NoNewWindow -Wait -PassThru -RedirectStandardOutput "C:\_WSL2\_APPLOG\export_output.log" -RedirectStandardError "C:\_WSL2\_APPLOG\export_error.log"
+
+            $outputTextBox.AppendText("Process Exit Code: $($process.ExitCode)`r`n")
+            $stdout = Get-Content "C:\_WSL2\_APPLOG\export_output.log" -Raw
+            $stderr = Get-Content "C:\_WSL2\_APPLOG\export_error.log" -Raw
+            $outputTextBox.AppendText("Standard Output: $stdout`r`n")
+            $outputTextBox.AppendText("Standard Error: $stderr`r`n")
+
+            if ($process.ExitCode -eq 0) {
+                $outputTextBox.AppendText("Export successful.`r`n")
+                Show-Notification -Title "Success" -Message "WEnix Image $selectedImage exported successfully to $exportPath" -icon info
+            } else {
+                $outputTextBox.AppendText("Export failed.`r`n")
+                [System.Windows.Forms.MessageBox]::Show("Failed to export WEnix Image. Exit code: $($process.ExitCode)`r`nError: $stderr", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            }
+        } catch {
+            $outputTextBox.AppendText("Exception occurred: $_`r`n")
+            [System.Windows.Forms.MessageBox]::Show("Error executing command: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+        }
+    } else {
+        $outputTextBox.AppendText("Missing information. Please enter an image name and an export name.`r`n")
+        [System.Windows.Forms.MessageBox]::Show("Please enter a WEnix image name and an export file name.", "Missing Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+    }
+})
+
+
+
+
