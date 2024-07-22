@@ -1,115 +1,117 @@
-$global:exportProcess = $null
-$global:exportCancelled = $false
+$action4 = {
+    $wslBackupForm = New-Object System.Windows.Forms.Form
+    $wslBackupForm.Text = "WEnix Image Backup"
+    $wslBackupForm.Size = New-Object System.Drawing.Size(600, 430)
+    $wslBackupForm.StartPosition = "CenterScreen"
+    $wslBackupForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
 
-$executeButton.Add_Click({
-    # ... (previous code remains the same)
+    # ... (previous code for labels, textboxes, and other controls remains the same)
 
-    try {
-        if (-not (Test-Path $exportLocation)) {
-            New-Item -ItemType Directory -Path $exportLocation | Out-Null
-            $outputTextBox.AppendText("Created directory: $exportLocation`r`n")
-        }
+    $executeButton = New-Object System.Windows.Forms.Button
+    $executeButton.Location = New-Object System.Drawing.Point(10, 515)
+    $executeButton.Size = New-Object System.Drawing.Size(280, 30)
+    $executeButton.Text = "Export WEnix Image"
+    $executeButton.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+    $executeButton.BackColor = [System.Drawing.Color]::White
+    $executeButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $executeButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
 
-        $command = "wsl.exe --export `"$selectedImage`" `"$exportPath`""
-        $outputTextBox.AppendText("Executing command: $command`r`n")
+    $closeButton = New-Object System.Windows.Forms.Button
+    $closeButton.Location = New-Object System.Drawing.Point(295, 515)
+    $closeButton.Size = New-Object System.Drawing.Size(280, 30)
+    $closeButton.Text = "Close"
+    $closeButton.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+    $closeButton.BackColor = [System.Drawing.Color]::White
+    $closeButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+    $closeButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $closeButton.Add_Click({ $wslBackupForm.Close() })
+    $wslBackupForm.Controls.Add($closeButton)
 
-        Show-Notification -Title "Backup Started" -Message "WEnix Image $selectedImage is currently being backed up. This Process can take up to 5 minutes." -Icon info
+    $global:exportProcess = $null
 
-        $global:exportProcess = Start-Process -FilePath "wsl.exe" -ArgumentList "--export", "`"$selectedImage`"", "`"$exportPath`"" -NoNewWindow -PassThru
+    $executeButton.Add_Click({
+        $selectedImage = $imageNameTextBox.Text.Trim()
+        $exportName = $exportNameTextBox.Text.Trim()
+        $exportLocation = $exportLocationTextBox.Text.Trim()
+        $outputTextBox.Clear()
+        $outputTextBox.AppendText("Selected Image: $selectedImage`r`nExport Name: $exportName`r`n")
 
-        # Start an asynchronous job to monitor the export process
-        $job = Start-Job -ScriptBlock {
-            param($process, $outputPath, $errorPath)
-            $process | Wait-Process
-            $stdout = Get-Content $outputPath -Raw
-            $stderr = Get-Content $errorPath -Raw
-            return @{
-                ExitCode = $process.ExitCode
-                StdOut = $stdout
-                StdErr = $stderr
+        if ($selectedImage -and $exportName) {
+            if (-not $exportName.EndsWith(".tar")) {
+                $exportName += ".tar"
             }
-        } -ArgumentList $global:exportProcess, "C:\_WSL2\_APPLOG\export_output.log", "C:\_WSL2\_APPLOG\export_error.log"
+            if ($exportLocation -eq "" -or $exportLocation -eq "Leave blank for default (C:\_WSL2)") {
+                $exportLocation = "C:\_WSL2"
+            }
+            
+            $exportPath = Join-Path $exportLocation $exportName
+            $outputTextBox.AppendText("Export Path: $exportPath`r`n")
 
-        # Start a timer to check the job status
-        $timer = New-Object System.Windows.Forms.Timer
-        $timer.Interval = 1000 # Check every second
-        $timer.Add_Tick({
-            if ($job.State -eq 'Completed') {
-                $timer.Stop()
-                $result = Receive-Job $job
-                $outputTextBox.AppendText("Process Exit Code: $($result.ExitCode)`r`n")
-                $outputTextBox.AppendText("Standard Output: $($result.StdOut)`r`n")
-                $outputTextBox.AppendText("Standard Error: $($result.StdErr)`r`n")
-
-                if ($result.ExitCode -eq 0 -and -not $global:exportCancelled) {
-                    $outputTextBox.AppendText("Export successful.`r`n")
-                    Show-Notification -Title "Success" -Message "WEnix Image $selectedImage exported successfully to $exportPath" -icon info
-                } elseif ($global:exportCancelled) {
-                    $outputTextBox.AppendText("Export cancelled by user.`r`n")
-                } else {
-                    $outputTextBox.AppendText("Export failed.`r`n")
-                    [System.Windows.Forms.MessageBox]::Show("Failed to export WEnix Image. Exit code: $($result.ExitCode)`r`nError: $($result.StdErr)", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+            try {
+                if (-not (Test-Path $exportLocation)) {
+                    New-Item -ItemType Directory -Path $exportLocation | Out-Null
+                    $outputTextBox.AppendText("Created directory: $exportLocation`r`n")
                 }
 
-                $executeButton.Enabled = $true
-                $global:exportProcess = $null
-                $global:exportCancelled = $false
-            }
-        })
-        $timer.Start()
+                $command = "wsl.exe --export `"$selectedImage`" `"$exportPath`""
+                $outputTextBox.AppendText("Executing command: $command`r`n")
 
-        $executeButton.Enabled = $false
-    } catch {
-        $outputTextBox.AppendText("Exception occurred: $_`r`n")
-        [System.Windows.Forms.MessageBox]::Show("Error executing command: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
-    }
-})
+                Show-Notification -Title "Backup Started" -Message "WEnix Image $selectedImage is currently being backed up. This Process can take up to 5 minutes." -Icon info
 
-Now, let's modify the cancel button to work with this new asynchronous process:
-powershell
-$cancelButton.Add_Click({
-    if ($global:exportProcess -and -not $global:exportProcess.HasExited) {
-        $result = [System.Windows.Forms.MessageBox]::Show(
-            "Are you sure you want to cancel the export process?",
-            "Confirm Cancel",
-            [System.Windows.Forms.MessageBoxButtons]::YesNo,
-            [System.Windows.Forms.MessageBoxIcon]::Warning
-        )
-        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
-            try {
-                $global:exportProcess.Kill()
-                $global:exportCancelled = $true
-                $outputTextBox.AppendText("Export process cancelled by user.`r`n")
-                $executeButton.Enabled = $true
+                $global:exportProcess = Start-Process -FilePath "wsl.exe" -ArgumentList "--export", "`"$selectedImage`"", "`"$exportPath`"" -NoNewWindow -PassThru
+
+                # Create and show the cancel window
+                $cancelForm = New-Object System.Windows.Forms.Form
+                $cancelForm.Text = "Cancel Export"
+                $cancelForm.Size = New-Object System.Drawing.Size(300, 150)
+                $cancelForm.StartPosition = "CenterScreen"
+                $cancelForm.TopMost = $true
+                $cancelForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+                $cancelForm.MaximizeBox = $false
+                $cancelForm.MinimizeBox = $false
+
+                $cancelButton = New-Object System.Windows.Forms.Button
+                $cancelButton.Location = New-Object System.Drawing.Point(75, 50)
+                $cancelButton.Size = New-Object System.Drawing.Size(150, 30)
+                $cancelButton.Text = "Cancel Export"
+                $cancelButton.Add_Click({
+                    if ($global:exportProcess -and -not $global:exportProcess.HasExited) {
+                        $global:exportProcess.Kill()
+                        $outputTextBox.AppendText("Export process cancelled by user.`r`n")
+                    }
+                    $cancelForm.Close()
+                })
+                $cancelForm.Controls.Add($cancelButton)
+
+                $cancelForm.Show()
+
+                $global:exportProcess.WaitForExit()
+
+                $cancelForm.Close()
+
+                $outputTextBox.AppendText("Process Exit Code: $($global:exportProcess.ExitCode)`r`n")
+                $stdout = Get-Content "C:\_WSL2\_APPLOG\export_output.log" -Raw
+                $stderr = Get-Content "C:\_WSL2\_APPLOG\export_error.log" -Raw
+                $outputTextBox.AppendText("Standard Output: $stdout`r`n")
+                $outputTextBox.AppendText("Standard Error: $stderr`r`n")
+
+                if ($global:exportProcess.ExitCode -eq 0) {
+                    $outputTextBox.AppendText("Export successful.`r`n")
+                    Show-Notification -Title "Success" -Message "WEnix Image $selectedImage exported successfully to $exportPath" -icon info
+                } else {
+                    $outputTextBox.AppendText("Export failed.`r`n")
+                    [System.Windows.Forms.MessageBox]::Show("Failed to export WEnix Image. Exit code: $($global:exportProcess.ExitCode)`r`nError: $stderr", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                }
             } catch {
-                $outputTextBox.AppendText("Failed to cancel the export process: $_`r`n")
-            }
-        }
-    } else {
-        $wslBackupForm.Close()
-    }
-})
-
-Finally, let's modify the form closing event:
-powershell
-$wslBackupForm.Add_FormClosing({
-    param($sender, $e)
-    if ($global:exportProcess -and -not $global:exportProcess.HasExited) {
-        $result = [System.Windows.Forms.MessageBox]::Show(
-            "An export process is still running. Are you sure you want to close the window and terminate the process?",
-            "Confirm Close",
-            [System.Windows.Forms.MessageBoxButtons]::YesNo,
-            [System.Windows.Forms.MessageBoxIcon]::Warning
-        )
-        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
-            try {
-                $global:exportProcess.Kill()
-                $global:exportCancelled = $true
-            } catch {
-                # Process may have exited already, ignore any errors
+                $outputTextBox.AppendText("Exception occurred: $_`r`n")
+                [System.Windows.Forms.MessageBox]::Show("Error executing command: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
             }
         } else {
-            $e.Cancel = $true
+            $outputTextBox.AppendText("Missing information. Please enter an image name and an export name.`r`n")
+            [System.Windows.Forms.MessageBox]::Show("Please enter a WEnix image name and an export file name.", "Missing Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
         }
-    }
-})
+    })
+    $wslBackupForm.Controls.Add($executeButton)
+
+    $wslBackupForm.ShowDialog()
+}
