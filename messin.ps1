@@ -320,3 +320,96 @@ $action4 = {
 
     $wslBackupForm.ShowDialog()
 }
+
+
+# Modify the execute button
+$executeButton.Location = New-Object System.Drawing.Point(10, 515)
+$executeButton.Size = New-Object System.Drawing.Size(280, 30)  # Reduced width
+$executeButton.Text = "Export WEnix Image"
+$executeButton.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+$executeButton.BackColor = [System.Drawing.Color]::White
+$executeButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+$executeButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+
+# Add the cancel button
+$cancelButton = New-Object System.Windows.Forms.Button
+$cancelButton.Location = New-Object System.Drawing.Point(295, 515)  # Positioned next to execute button
+$cancelButton.Size = New-Object System.Drawing.Size(280, 30)  # Same size as execute button
+$cancelButton.Text = "Cancel"
+$cancelButton.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+$cancelButton.BackColor = [System.Drawing.Color]::White
+$cancelButton.ForeColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+$cancelButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+
+# Variable to store the export process
+$global:exportProcess = $null
+
+$cancelButton.Add_Click({
+    if ($global:exportProcess -and -not $global:exportProcess.HasExited) {
+        $result = [System.Windows.Forms.MessageBox]::Show(
+            "Are you sure you want to cancel the export process?",
+            "Confirm Cancel",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Warning
+        )
+        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+            try {
+                $global:exportProcess.Kill()
+                $outputTextBox.AppendText("Export process cancelled by user.`r`n")
+            } catch {
+                $outputTextBox.AppendText("Failed to cancel the export process: $_`r`n")
+            }
+        }
+    } else {
+        $wslBackupForm.Close()
+    }
+})
+
+$wslBackupForm.Controls.Add($cancelButton)
+
+# Modify the execute button click event
+$executeButton.Add_Click({
+    # ... (previous code remains the same)
+
+    try {
+        if (-not (Test-Path $exportLocation)) {
+            New-Item -ItemType Directory -Path $exportLocation | Out-Null
+            $outputTextBox.AppendText("Created directory: $exportLocation`r`n")
+        }
+
+        $command = "wsl.exe --export `"$selectedImage`" `"$exportPath`""
+        $outputTextBox.AppendText("Executing command: $command`r`n")
+
+        Show-Notification -Title "Backup Started" -Message "WEnix Image $selectedImage is currently being backed up. This Process can take up to 5 minutes." -Icon info
+
+        $global:exportProcess = Start-Process -FilePath "wsl.exe" -ArgumentList "--export", "`"$selectedImage`"", "`"$exportPath`"" -NoNewWindow -PassThru
+        $global:exportProcess | Wait-Process
+
+        # ... (rest of the code remains the same)
+    } catch {
+        $outputTextBox.AppendText("Exception occurred: $_`r`n")
+        [System.Windows.Forms.MessageBox]::Show("Error executing command: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+})
+
+# Add form closing event to handle process termination
+$wslBackupForm.Add_FormClosing({
+    param($sender, $e)
+    if ($global:exportProcess -and -not $global:exportProcess.HasExited) {
+        $result = [System.Windows.Forms.MessageBox]::Show(
+            "An export process is still running. Are you sure you want to close the window and terminate the process?",
+            "Confirm Close",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Warning
+        )
+        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+            try {
+                $global:exportProcess.Kill()
+            } catch {
+                # Process may have exited already, ignore any errors
+            }
+        } else {
+            $e.Cancel = $true
+        }
+    }
+})
