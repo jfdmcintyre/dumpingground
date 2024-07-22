@@ -115,3 +115,45 @@ $action4 = {
 
     $wslBackupForm.ShowDialog()
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                # Create and show the cancel window
+                $cancelForm = New-Object System.Windows.Forms.Form
+                $cancelForm.Text = "Cancel Export"
+                $cancelForm.Size = New-Object System.Drawing.Size(300, 150)
+                $cancelForm.StartPosition = "CenterScreen"
+                $cancelForm.TopMost = $true
+                $cancelForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+                $cancelForm.MaximizeBox = $false
+                $cancelForm.MinimizeBox = $false
+
+                $cancelButton = New-Object System.Windows.Forms.Button
+                $cancelButton.Location = New-Object System.Drawing.Point(75, 50)
+                $cancelButton.Size = New-Object System.Drawing.Size(150, 30)
+                $cancelButton.Text = "Cancel Export"
+                $cancelButton.Add_Click({
+                    if ($global:exportProcess -and -not $global:exportProcess.HasExited) {
+                        $global:exportProcess.Kill()
+                        $outputTextBox.AppendText("Export process cancelled by user.`r`n")
+                    }
+                    $cancelForm.Close()
+                })
+                $cancelForm.Controls.Add($cancelButton)
+
+                $cancelForm.Show()
+
+                $global:exportProcess.WaitForExit()
+
+                $cancelForm.Close()
