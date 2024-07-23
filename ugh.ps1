@@ -157,3 +157,41 @@ $action4 = {
                 $global:exportProcess.WaitForExit()
 
                 $cancelForm.Close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                $listView.Add_DoubleClick({
+                    if ($listView.SelectedItems.Count -eq 1) {
+                        $selectedImage = $listView.SelectedItems[0].Text
+                        $result = [System.Windows.Forms.MessageBox]::Show(
+                            "Do you want to load $selectedImage?",
+                            "Load WEnix Image",
+                            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                            [System.Windows.Forms.MessageBoxIcon]::Question
+                        )
+                        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+                            try {
+                                $process = Start-Process -FilePath "wsl.exe" -ArgumentList "-d", $selectedImage -NoNewWindow -PassThru
+                                [System.Windows.Forms.MessageBox]::Show("WEnix Image $selectedImage loaded successfully.", "Success", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+                            }
+                            catch {
+                                [System.Windows.Forms.MessageBox]::Show("Failed to load WEnix Image $selectedImage. Error: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+                            }
+                        }
+                    }
+                })
