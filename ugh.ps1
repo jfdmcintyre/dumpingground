@@ -524,3 +524,39 @@ $closeButton.Add_Click({ $statusForm.Close()
 $statusForm.Controls.Add($closeButton)
 $statusForm.Add_FormClosed({ $refreshTimer.Stop()})
 $statusForm.ShowDialog()
+
+
+
+
+
+
+
+
+function Get-WSLImageDetails {
+    $details = @{}
+    $lxssPath = "Registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss"
+    $runningImages = wsl --list --running | Select-Object -Skip 1 | ForEach-Object { $_.Trim() }
+
+    if (Test-Path $lxssPath) {
+        Get-ChildItem -Path $lxssPath | ForEach-Object {
+            $distroName = $_.GetValue("DistributionName")
+            $basePath = $_.GetValue("BasePath")
+            if ($distroName -and $basePath) {
+                try {
+                    $vhdPath = Join-Path $basePath "ext4.vhdx"
+                    $vhdSize = (Get-Item $vhdPath).Length / 1GB
+                    $vhdSizeFormatted = "{0:N2} GB" -f $vhdSize
+                } catch {
+                    $vhdSizeFormatted = "Error retrieving size"
+                }
+                $status = if ($runningImages -contains $distroName) { "Running" } else { "Stopped" }
+                $details[$distroName] = @{
+                    Size = $vhdSizeFormatted
+                    Location = New-LocationPath $basePath
+                    Status = $status
+                }
+            }
+        }
+    }
+    return $details
+}
