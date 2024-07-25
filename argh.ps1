@@ -1,63 +1,71 @@
-﻿Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
+﻿$listView.Columns.Clear()
+$listView.Columns.Add("WEnix Image", 150)
+$listView.Columns.Add("Status", 80)
+$listView.Columns.Add("VHD Size", 80)
+$listView.Columns.Add("Location", 440)
 
-function New-CustomButton {
-    
-    param (
-        [Parameter(Mandatory=$true)]
-        [string]$Text,
-        
-        [Parameter(Mandatory=$true)]
-        [int]$X,
-        
-        [Parameter(Mandatory=$true)]
-        [int]$Y,
-        
-        [Parameter(Mandatory=$true)]
-        [scriptblock]$Action
-    )
 
-    $button = New-Object System.Windows.Forms.Button
-    $button.Location = New-Object System.Drawing.Point($X, $Y)
-    $button.Size = New-Object System.Drawing.Size(150, 50)
-    $button.Text = $Text
-    $button.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
-    $button.ForeColor = [System.Drawing.Color]::White
-    $button.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-    $button.Add_Click($Action)
-    return $button
+function Get-WSLImageDetails {
+    $details = @{}
+    $lxssPath = "Registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss"
+    $runningDistros = (wsl --list --running).Split("`n") | Select-Object -Skip 1 | ForEach-Object { $_.Trim() }
+
+    if (Test-Path $lxssPath) {
+        Get-ChildItem -Path $lxssPath | ForEach-Object {
+            $distroName = $_.GetValue("DistributionName")
+            $basePath = $_.GetValue("BasePath")
+            if ($distroName -and $basePath) {
+                try {
+                    $dfOutput = wsl.exe --system -d $distroName df -h /mnt/wslg/distro
+                    $sizeInfo = $dfOutput | Select-Object -Last 1
+                    if ($sizeInfo -match '\s(\S+)\s+(\S+)\s+(\S+)\s+(\S+)') {
+                        $used = $matches[2]
+                        $status = if ($runningDistros -contains $distroName) { "Running" } else { "Stopped" }
+                        $details[$distroName] = @{
+                            Size = $used
+                            Location = New-LocationPath $basePath
+                            Status = $status
+                        }
+                    } else {
+                        $details[$distroName] = @{
+                            Size = "Size unknown"
+                            Location = New-LocationPath $basePath
+                            Status = if ($runningDistros -contains $distroName) { "Running" } else { "Stopped" }
+                        }
+                    }
+                } catch {
+                    $details[$distroName] = @{
+                        Size = "Error retrieving size"
+                        Location = New-LocationPath $basePath
+                        Status = if ($runningDistros -contains $distroName) { "Running" } else { "Stopped" }
+                    }
+                }
+            }
+        }
+    }
+    return $details
 }
 
-# Create the main form
-$mainForm = New-Object System.Windows.Forms.Form
-$mainForm.Text = "WSL Management Tool"
-$mainForm.Size = New-Object System.Drawing.Size(500, 400)
-$mainForm.StartPosition = "CenterScreen"
-$mainForm.BackColor = [System.Drawing.Color]::FromArgb(240, 240, 240)
+$wslImages = Get-WSLImages
+$wslDetails = Get-WSLImageDetails
+$outputTextBox.AppendText("WSL Images found: $($wslImages.Count)`r`n")
+$outputTextBox.AppendText("WSL Details retrieved: $($wslDetails.Count)`r`n")
 
-# Define actions for each button
-$actions = @(
-    { Write-Host "Action 1 executed" },
-    { Write-Host "Action 2 executed" },
-    { Write-Host "Action 3 executed" },
-    { Write-Host "Action 4 executed" },
-    { Write-Host "Action 5 executed" },
-    { Write-Host "Action 6 executed" },
-    { Write-Host "Action 7 executed" },
-    { Write-Host "Action 8 executed" },
-    { Write-Host "Action 9 executed" }
-)
-
-# Create and add buttons to the form
-for ($i = 0; $i -lt 9; $i++) {
-    $row = [math]::Floor($i / 3)
-    $col = $i % 3
-    $x = 20 + ($col * 160)
-    $y = 20 + ($row * 60)
-    
-    $button = New-CustomButton -Text "Action $($i+1)" -X $x -Y $y -Action $actions[$i]
-    $mainForm.Controls.Add($button)
+foreach ($image in $wslImages) {
+    $details = $wslDetails[$image]
+    if ($details) {
+        $location = $details.Location
+        $size = $details.Size
+        $status = $details.Status
+    } else {
+        $location = "Location not found"
+        $size = "Size unknown"
+        $status = "Unknown"
+    }
+    $outputTextBox.AppendText("Image: $image, Status: $status, Size: $size, Location: $location`r`n")
+    $listViewItem = New-Object System.Windows.Forms.ListViewItem($image)
+    $listViewItem.SubItems.Add($status)
+    $listViewItem.SubItems.Add($size)
+    $listViewItem.SubItems.Add($location)
+    $listView.Items.Add($listViewItem)
 }
-
-# Show the form
-$mainForm.ShowDialog()
