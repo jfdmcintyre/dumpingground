@@ -1,33 +1,53 @@
-$global:RefreshAction9ListView = {
-    if ($listView -and $listView.InvokeRequired) {
-        $listView.Invoke($global:RefreshAction9ListView)
-    } else {
-        # Your existing refresh logic here
-        $listView.Items.Clear()
-        $wslOutput = wsl --list --verbose
-        $wslLines = $wslOutput -split "`n" | Select-Object -Skip 1 | Where-Object { $_.Trim() -ne "" -and $_.Trim() -notmatch "wsl-vpnkit" }
-        foreach ($line in $wslLines) {
-            $parts = $line -split '\s+', 3
-            if ($parts.Count -ge 3) {
-                $name = $parts[2].Trim()
-                $status = $parts[1].Trim()
-                $item = New-Object System.Windows.Forms.ListViewItem($name)
-                $item.SubItems.Add($status)
-                $listView.Items.Add($item)
-            }
+$executeButton.Add_Click({
+    $exportName = $exportNameTextBox.Text.Trim()
+    $exportLocation = $exportLocationTextBox.Text.Trim()
+    $outputTextBox.Clear()
+    $outputTextBox.AppendText("Selected Image: $global:SelectedImageForBackup`r`nExport Name: $exportName`r`n")
+
+    if ($exportName) {
+        if (-not $exportName.EndsWith(".tar")) {
+            $exportName += ".tar"
+        }
+        
+        if ($exportLocation -eq "" -or $exportLocation -eq "Leave blank for default (C:\_WSL2)") {
+            $exportLocation = "C:\_WSL2"
+        }
+
+        # Create a folder with the same name as the image
+        $imageFolderName = $global:SelectedImageForBackup
+        $imageFolderPath = Join-Path $exportLocation $imageFolderName
+        if (-not (Test-Path $imageFolderPath)) {
+            New-Item -ItemType Directory -Path $imageFolderPath | Out-Null
+            $outputTextBox.AppendText("Created directory: $imageFolderPath`r`n")
+        }
+
+        $exportPath = Join-Path $imageFolderPath $exportName
+        $outputTextBox.AppendText("Export Path: $exportPath`r`n")
+
+        # Check available disk space
+        $drive = Split-Path -Qualifier $exportPath
+        $freeSpace = (Get-PSDrive $drive.TrimEnd(":")).Free
+
+        # Rest of the disk space check and export logic...
+        # ...
+
+        try {
+            $command = "wsl.exe --export `"$global:SelectedImageForBackup`" `"$exportPath`""
+            $outputTextBox.AppendText("Executing command: $command`r`n")
+            Show-Notification -Title "Backup Started" -Message "WEnix Image $global:SelectedImageForBackup is currently being backed up. This Process can take up to 5 minutes." -Icon info
+
+            $process = Start-Process -FilePath "wsl.exe" -ArgumentList "--export", "`"$global:SelectedImageForBackup`"", "`"$exportPath`"" -NoNewWindow -Wait -PassThru -RedirectStandardOutput "C:\_WSL2\_APPLOG\export_output.log" -RedirectStandardError "C:\_WSL2\_APPLOG\export_error.log"
+
+            # Rest of the process handling code...
+            # ...
+        }
+        catch {
+            $outputTextBox.AppendText("Exception occurred: $_`r`n")
+            [System.Windows.Forms.MessageBox]::Show("Error executing command: $_", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
         }
     }
-}
-
-
-
-if ($global:RefreshAction9ListView) {
-    & $global:RefreshAction9ListView
-}
-
-
-if ($wslManagerForm.InvokeRequired) {
-    $wslManagerForm.Invoke($global:RefreshAction9ListView)
-} else {
-    & $global:RefreshAction9ListView
-}
+    else {
+        $outputTextBox.AppendText("Missing information. Please enter an export name.`r`n")
+        [System.Windows.Forms.MessageBox]::Show("Please enter an export file name.", "Missing Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+    }
+})
