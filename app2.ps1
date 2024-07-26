@@ -1,5 +1,7 @@
 function Get-WSLImageDetails {
     $details = @{}
+    $originalEncoding = [Console]::OutputEncoding
+    [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
     $lxssPath = "Registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss"
     
     # Get list of all distributions, including the default one
@@ -51,6 +53,7 @@ function Get-WSLImageDetails {
             }
         }
     }
+    [Console]::OutputEncoding = $originalEncoding
     return $details
 }
 
