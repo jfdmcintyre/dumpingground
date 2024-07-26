@@ -528,6 +528,75 @@ $statusForm.ShowDialog()
 
 
 
+$action9 = {
+    # ... (existing code)
+
+    $listView = New-Object System.Windows.Forms.ListView
+    # ... (existing ListView setup)
+
+    $contextMenu = New-Object System.Windows.Forms.ContextMenuStrip
+
+    $loadMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $loadMenuItem.Text = "Load Image"
+
+    $backupMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $backupMenuItem.Text = "Backup Image"
+
+    $removeMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $removeMenuItem.Text = "Remove Image"
+
+    $setSparseMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $setSparseMenuItem.Text = "Set Sparse VHD"
+
+    $contextMenu.Items.Add($loadMenuItem)
+    $contextMenu.Items.Add($backupMenuItem)
+    $contextMenu.Items.Add($removeMenuItem)
+    $contextMenu.Items.Add($setSparseMenuItem)
+
+    $loadMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -eq 1) {
+            $selectedImage = $listView.SelectedItems[0].Text
+            # Add your load image logic here
+        }
+    })
+
+    $backupMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -eq 1) {
+            $selectedImage = $listView.SelectedItems[0].Text
+            $global:SelectedImageForBackup = $selectedImage
+            ./actions/action4.ps1
+        }
+    })
+
+    $removeMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -eq 1) {
+            $selectedImage = $listView.SelectedItems[0].Text
+            # Add your remove image logic here
+        }
+    })
+
+    $setSparseMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -eq 1) {
+            $selectedImage = $listView.SelectedItems[0].Text
+            # Add your set sparse VHD logic here
+        }
+    })
+
+    $listView.ContextMenuStrip = $contextMenu
+
+    $listView.Add_MouseUp({
+        if ($_.Button -eq [System.Windows.Forms.MouseButtons]::Right) {
+            if ($listView.SelectedItems.Count -gt 0) {
+                $contextMenu.Show($listView, $_.Location)
+            }
+        }
+    })
+
+    # ... (rest of your existing code)
+}
+
+
+
 
 
 
