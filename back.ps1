@@ -1,60 +1,71 @@
-class CustomMessageBox {
-    [System.Windows.Forms.Form]$form
-    [System.Windows.Forms.RichTextBox]$richTextBox
-    [System.Windows.Forms.Button]$okButton
+$removeButton.Add_Click({
+    if ($listView.SelectedItems.Count -eq 1) {
+        $selectedImage = $listView.SelectedItems[0].Text
+        $result = [System.Windows.Forms.MessageBox]::Show(
+            "Are you sure you want to remove $selectedImage?`nThis action cannot be undone.",
+            "Confirm Removal",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Warning
+        )
+        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+            try {
+                # Get the path to the VHDX file before unregistering
+                $vhdxPath = (Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss\*" | 
+                    Where-Object { $_.DistributionName -eq $selectedImage }).BasePath
 
-    CustomMessageBox([string]$title, [string]$message) {
-        $this.form = New-Object System.Windows.Forms.Form
-        $this.form.Text = $title
-        $this.form.Size = New-Object System.Drawing.Size(400, 200)
-        $this.form.StartPosition = "CenterScreen"
-        $this.form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
-        $this.form.MaximizeBox = $false
-        $this.form.MinimizeBox = $false
-        $this.form.ShowInTaskbar = $false
+                # Unregister the WSL distribution
+                $process = Start-Process -FilePath "wsl.exe" -ArgumentList "--unregister", $selectedImage -NoNewWindow -Wait -PassThru
+                if ($process.ExitCode -eq 0) {
+                    $outputTextBox.AppendText("$selectedImage has been successfully removed.`r`n")
 
-        $this.richTextBox = New-Object System.Windows.Forms.RichTextBox
-        $this.richTextBox.Location = New-Object System.Drawing.Point(10, 10)
-        $this.richTextBox.Size = New-Object System.Drawing.Size(360, 100)
-        $this.richTextBox.ReadOnly = $true
-        $this.richTextBox.BorderStyle = [System.Windows.Forms.BorderStyle]::None
-        $this.richTextBox.BackColor = $this.form.BackColor
-        $this.richTextBox.Text = $message
-        $this.form.Controls.Add($this.richTextBox)
+                    # Remove the VHDX file
+                    if ($vhdxPath) {
+                        $vhdxFile = Join-Path $vhdxPath "ext4.vhdx"
+                        if (Test-Path $vhdxFile) {
+                            Remove-Item $vhdxFile -Force
+                            $outputTextBox.AppendText("VHDX file removed: $vhdxFile`r`n")
 
-        $this.okButton = New-Object System.Windows.Forms.Button
-        $this.okButton.Text = "OK"
-        $this.okButton.Location = New-Object System.Drawing.Point(150, 120)
-        $this.okButton.Size = New-Object System.Drawing.Size(100, 30)
-        $this.okButton.Add_Click({ $this.form.DialogResult = [System.Windows.Forms.DialogResult]::OK; $this.form.Close() })
-        $this.form.Controls.Add($this.okButton)
+                            # Check if the parent folder is empty
+                            $parentFolder = Split-Path $vhdxFile -Parent
+                            if ((Get-ChildItem $parentFolder -Force | Measure-Object).Count -eq 0) {
+                                Remove-Item $parentFolder -Force -Recurse
+                                $outputTextBox.AppendText("Empty parent folder removed: $parentFolder`r`n")
+                            } else {
+                                $outputTextBox.AppendText("Parent folder not empty, skipping removal: $parentFolder`r`n")
+                            }
+                        } else {
+                            $outputTextBox.AppendText("VHDX file not found: $vhdxFile`r`n")
+                        }
+                    } else {
+                        $outputTextBox.AppendText("VHDX path not found for $selectedImage`r`n")
+                    }
+
+                    # Refresh the ListView
+                    $listView.Items.Clear()
+                    $wslImages = Get-WSLImages
+                    $wslDetails = Get-WSLImageDetails
+                    foreach ($image in $wslImages) {
+                        $details = $wslDetails[$image]
+                        if ($details) {
+                            $location = $details.Location
+                            $size = $details.Size
+                        } else {
+                            $location = "Location not found"
+                            $size = "Size unknown"
+                        }
+                        $listViewItem = New-Object System.Windows.Forms.ListViewItem($image)
+                        $listViewItem.SubItems.Add($size)
+                        $listViewItem.SubItems.Add($location)
+                        $listView.Items.Add($listViewItem)
+                    }
+                } else {
+                    $outputTextBox.AppendText("Failed to remove $selectedImage. Exit code: $($process.ExitCode)`r`n")
+                }
+            } catch {
+                $outputTextBox.AppendText("An error occurred: $_`r`n")
+            }
+        }
+    } else {
+        [System.Windows.Forms.MessageBox]::Show("Please select a WEnix image to remove.", "No Image Selected", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
     }
-
-    [System.Windows.Forms.DialogResult] ShowDialog() {
-        return $this.form.ShowDialog()
-    }
-
-    [void] AddFormattedText([string]$text, [bool]$bold = $false, [bool]$underline = $false) {
-        $startIndex = $this.richTextBox.TextLength
-        $this.richTextBox.AppendText($text)
-        $endIndex = $this.richTextBox.TextLength
-
-        $this.richTextBox.Select($startIndex, $endIndex - $startIndex)
-        
-        $style = [System.Drawing.FontStyle]::Regular
-        if ($bold) { $style = $style -bor [System.Drawing.FontStyle]::Bold }
-        if ($underline) { $style = $style -bor [System.Drawing.FontStyle]::Underline }
-        
-        $this.richTextBox.SelectionFont = New-Object System.Drawing.Font($this.richTextBox.Font, $style)
-        $this.richTextBox.DeselectAll()
-    }
-}
-
-# Create and show the custom message box
-$messageBox = [CustomMessageBox]::new("Custom Message Box", "")
-$messageBox.AddFormattedText("This is a ", $false, $false)
-$messageBox.AddFormattedText("bold", $true, $false)
-$messageBox.AddFormattedText(" and ", $false, $false)
-$messageBox.AddFormattedText("underlined", $false, $true)
-$messageBox.AddFormattedText(" message.", $false, $false)
-$messageBox.ShowDialog()
+})
