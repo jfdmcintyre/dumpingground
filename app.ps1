@@ -1492,7 +1492,7 @@ $action9 = {
     $diskSpaceLabel.Text = "Available disk space: $diskSpaceGB GB"
     $statusForm.Controls.Add($diskSpaceLabel)
 
-    $outputTextBox = New-Object System.Windows.Forms.TextBox
+    $outputTextBox = New-Object System.Windows.Forms.RichTextBox
     $outputTextBox.Location = New-Object System.Drawing.Point(10, 230)
     $outputTextBox.Size = New-Object System.Drawing.Size(565, 150)
     $outputTextBox.Multiline = $true
@@ -1575,4 +1575,32 @@ $action9 = {
     $statusForm.Controls.Add($closeButton)
 
     $statusForm.ShowDialog()
+}
+
+
+function Add-FormattedText{
+    param (
+        [System.Windows.Form.RichTextBox]$RichTextBox,
+        [string]$text,
+        [System.Drawing.Font]$Font = $RichTextBox.Font,
+        [System.Drawing.Color]$Color = [System.Drawing.Color]::Black,
+        [bool]$bold = $false,
+        [bool]$Italic = $false,
+        [bool]$Underline = $false
+    )
+
+$startIndex = $RichTextBox.TextLength
+$RichTextBox.AppendText($text)
+$endIndex = $RichTextBox.TextLength
+
+$RichTextBox.Select($startIndex, $endIndex - $startIndex)
+
+$Style = [System.Drawing.FontStyle]::Regular
+if ($Bold) {$style = $style -bor [System.Drawing.FontStyle]::Bold}
+if ($Italic) {$style = $style -bor [System.Drawing.FontStyle]::Italic}
+if ($Underline) {$style = $style -bor [System.Drawing.FontStyle]::Underline}
+
+$RichTextBox.SelectionFont = New-Object System.Drawing.Font($Font.FontFamily, $Font.Size, $style)
+$RichTextBox.SelectionColor = $Color
+$RichTextBox.DeselectAll()
 }
