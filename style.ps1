@@ -469,30 +469,38 @@ function Get-WSLImageDetails {
                     $distroPath = [System.IO.Path]::GetFullPath($basePath)
                     
                     if (Test-Path $distroPath) {
-                        # Get cluster size in bytes
-                        $driveInfo = [System.IO.DriveInfo]::new([System.IO.Path]::GetPathRoot($distroPath))
-                        $clusterSize = $driveInfo.AvailableFreeSpace / $driveInfo.TotalSize
+                        # Ensure the path ends with a backslash if it's a directory
+                        if (-not $distroPath.EndsWith("\")) {
+                            $distroPath += "\"
+                        }
 
                         # Calculate total size of files in bytes
                         $totalSizeBytes = 0
+                        $fileCount = 0
+
+                        # Traverse directories and files
                         Get-ChildItem -Recurse -Path $distroPath -ErrorAction Stop | ForEach-Object {
-                            if ($_.PSIsContainer -eq $false) {
+                            if (-not $_.PSIsContainer) {
                                 try {
                                     $file = [System.IO.File]::Open($_.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read)
                                     $totalSizeBytes += $file.Length
                                     $file.Close()
+                                    $fileCount++
                                 } catch {
                                     Write-Warning "Failed to read file: $_.FullName"
                                 }
                             }
                         }
 
-                        # Calculate size on disk
-                        $clusterSizeBytes = [math]::Ceiling($clusterSize * 1024 * 1024) # Assuming cluster size in MB
-                        $sizeOnDiskBytes = [math]::Ceiling($totalSizeBytes / $clusterSizeBytes) * $clusterSizeBytes
-                        $sizeOnDiskGB = "{0:N2} GB" -f ($sizeOnDiskBytes / 1GB)
-
-                        $distroSize = $sizeOnDiskGB
+                        if ($fileCount -eq 0) {
+                            $distroSize = "No files found"
+                        } else {
+                            # Calculate size on disk
+                            $clusterSizeBytes = 4096 # Assuming 4KB cluster size
+                            $sizeOnDiskBytes = [math]::Ceiling($totalSizeBytes / $clusterSizeBytes) * $clusterSizeBytes
+                            $sizeOnDiskGB = "{0:N2} GB" -f ($sizeOnDiskBytes / 1GB)
+                            $distroSize = $sizeOnDiskGB
+                        }
                     } else {
                         $distroSize = "Directory not found"
                     }
@@ -515,6 +523,15 @@ function Get-WSLImageDetails {
     [Console]::OutputEncoding = $originalEncoding
     return $details
 }
+
+function New-LocationPath {
+    param (
+        [string]$path
+    )
+    # Modify this function if needed for proper location path formatting
+    return $path
+}
+
 
 function New-LocationPath {
     param (
