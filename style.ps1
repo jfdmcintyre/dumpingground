@@ -439,24 +439,26 @@ $webViewForm.ShowDialog()
 function Get-WSLImageDetails {
     $details = @{}
 
+    # Save the original console encoding and switch to Unicode for WSL output
     $originalEncoding = [Console]::OutputEncoding
     [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
 
+    # Path to WSL registry entries
     $lxssPath = "Registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss"
 
-    # Get list of all distributions, including the default one
+    # Get list of all WSL distributions
     $allDistros = wsl --list --verbose | Select-Object -Skip 1 | ForEach-Object {
         if ($_ -match '^\*?\s*(\S+.*)') {
             $matches[1].Trim()
         }
     }
 
-    # Get list of all running distros. This includes default
+    # Get list of all running distributions
     $runningImages = wsl -l --running | Select-Object -Skip 1 | ForEach-Object {
         $_.Trim() -replace ' \(Default\)$', ''
     }
 
-    [Console]::OutputEncoding = $originalEncoding
+    [Console]::OutputEncoding = $originalEncoding  # Restore original encoding
 
     if (Test-Path $lxssPath) {
         Get-ChildItem -Path $lxssPath | ForEach-Object {
@@ -464,75 +466,73 @@ function Get-WSLImageDetails {
             $basePath = $_.GetValue("BasePath")
 
             if ($distroName -and $basePath) {
-                try {
-                    # Normalize the base path
-                    $distroPath = [System.IO.Path]::GetFullPath($basePath)
-                    
-                    if (Test-Path $distroPath) {
-                        # Ensure the path ends with a backslash if it's a directory
-                        if (-not $distroPath.EndsWith("\")) {
-                            $distroPath += "\"
-                        }
+                Write-Host "Processing distro: $distroName"
+                Write-Host "Base path: $basePath"
 
-                        # Initialize size variables
+                try {
+                    # Normalize and verify the base path
+                    if (-not [System.IO.Path]::IsPathRooted($basePath)) {
+                        $distroPath = [System.IO.Path]::GetFullPath($basePath)
+                    } else {
+                        $distroPath = $basePath
+                    }
+
+                    Write-Host "Distro path: $distroPath"
+
+                    if (Test-Path $distroPath) {
+                        # Calculate size on disk
                         $totalSizeBytes = 0
                         $fileCount = 0
-
-                        # Traverse directories and files
-                        Get-ChildItem -Recurse -Path $distroPath -ErrorAction Stop | ForEach-Object {
+                        Get-ChildItem -Recurse -LiteralPath $distroPath -ErrorAction Stop | ForEach-Object {
                             if (-not $_.PSIsContainer) {
                                 try {
-                                    $file = [System.IO.File]::Open($_.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read)
-                                    $totalSizeBytes += $file.Length
-                                    $file.Close()
+                                    $totalSizeBytes += $_.Length
                                     $fileCount++
                                 } catch {
-                                    Write-Warning "Failed to read file: $_.FullName"
+                                    Write-Warning "Failed to read file: $($_.FullName)"
                                 }
                             }
                         }
 
                         if ($fileCount -eq 0) {
-                            $distroSize = "No files found or access issue"
+                            $distroSize = "No files found"
                         } else {
-                            # Calculate size on disk
-                            $clusterSizeBytes = 4096 # Assuming 4KB cluster size
+                            # Assume 4KB cluster size for size-on-disk calculation
+                            $clusterSizeBytes = 4096
                             $sizeOnDiskBytes = [math]::Ceiling($totalSizeBytes / $clusterSizeBytes) * $clusterSizeBytes
-                            $sizeOnDiskGB = "{0:N2} GB" -f ($sizeOnDiskBytes / 1GB)
-                            $distroSize = $sizeOnDiskGB
+                            $distroSize = "{0:N2} GB" -f ($sizeOnDiskBytes / 1GB)
                         }
                     } else {
+                        Write-Host "Distro directory not found: $distroPath"
                         $distroSize = "Directory not found"
                     }
                 } catch {
+                    Write-Host "Error processing $distroName: $($_.Exception.Message)"
                     $distroSize = "Error: $($_.Exception.Message)"
                 }
 
+                # Determine distro status (running/stopped)
                 $status = if ($runningImages -contains $distroName) { "Running" } else { "Stopped" }
                 $displayName = if ($allDistros -contains "$distroName (Default)") { "$distroName (Default)" } else { $distroName }
 
+                # Store details in the result
                 $details[$displayName] = @{
                     Size = $distroSize
-                    Location = New-LocationPath $basePath
+                    Location = $distroPath
                     Status = $status
                 }
+            } else {
+                Write-Host "No distro name or base path found for registry entry."
             }
         }
     }
 
-    [Console]::OutputEncoding = $originalEncoding
+    [Console]::OutputEncoding = $originalEncoding  # Restore original encoding before returning
     return $details
 }
 
-function New-LocationPath {
-    param (
-        [string]$path
-    )
-    # Modify this function if needed for proper location path formatting
-    return $path
-}
 
-
+s
 
 
 
