@@ -345,3 +345,54 @@ $mainForm.MainMenuStrip = $menuStrip
 # Show the main form
 $mainForm.ShowDialog()
 
+
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+# Function to open the web app in a new window
+function Open-WebApp {
+    # Create a new form
+    $webForm = New-Object System.Windows.Forms.Form
+    $webForm.Text = "WEnix Help"
+    $webForm.Size = New-Object System.Drawing.Size(1000, 700)
+    $webForm.StartPosition = "CenterScreen"
+
+    # Create a WebBrowser control
+    $webBrowser = New-Object System.Windows.Forms.WebBrowser
+    $webBrowser.Dock = [System.Windows.Forms.DockStyle]::Fill
+
+    # Set the URL of your MkDocs web app
+    $webBrowser.Url = [System.Uri]::new("https://yourwebapp.com")
+
+    # Add the WebBrowser control to the form
+    $webForm.Controls.Add($webBrowser)
+
+    # Show the form
+    $webForm.ShowDialog()
+}
+
+# Main form of your application
+$mainForm = New-Object System.Windows.Forms.Form
+$mainForm.Text = "WEnix Companion"
+$mainForm.Size = New-Object System.Drawing.Size(600, 700)
+$mainForm.StartPosition = "CenterScreen"
+
+# Create a menu strip
+$menuStrip = New-Object System.Windows.Forms.MenuStrip
+$mainForm.MainMenuStrip = $menuStrip
+$mainForm.Controls.Add($menuStrip)
+
+# Create the Help menu item
+$helpMenu = New-Object System.Windows.Forms.ToolStripMenuItem
+$helpMenu.Text = "Help"
+$menuStrip.Items.Add($helpMenu)
+
+# Add the Help documentation menu item
+$helpMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$helpMenuItem.Text = "Open Help Documentation"
+$helpMenuItem.Add_Click({ Open-WebApp })
+$helpMenu.DropDownItems.Add($helpMenuItem)
+
+# Show the main form
+$mainForm.ShowDialog()
+
