@@ -480,17 +480,20 @@ function Get-WSLImageDetails {
                     }
 
                     if (Test-Path $distroPath) {
-                        # Get cluster size
-                        $drive = Get-PSDrive -Name (Get-Item $distroPath).PSDrive.Name
-                        $clusterSize = (Get-Item $distroPath).PSDrive.Used / 1GB
-                        
                         # Calculate size on disk
-                        $files = Get-ChildItem -Recurse -Path $distroPath -ErrorAction Stop
-                        $totalBytes = 0
-                        foreach ($file in $files) {
-                            $totalBytes += [System.IO.File]::Open($file.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read).Length
+                        $totalSizeBytes = 0
+                        $clusterSize = [System.IO.DriveInfo]::new((Get-Item $distroPath).PSDrive.Name).AvailableFreeSpace / [System.IO.DriveInfo]::new((Get-Item $distroPath).PSDrive.Name).TotalSize
+                        
+                        Get-ChildItem -Recurse -Path $distroPath -ErrorAction Stop | ForEach-Object {
+                            if ($_.PSIsContainer -eq $false) {
+                                $file = [System.IO.File]::Open($_.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read)
+                                $totalSizeBytes += $file.Length
+                                $file.Close()
+                            }
                         }
-                        $sizeOnDiskGB = [math]::Ceiling($totalBytes / 1GB)
+
+                        # Calculate size on disk considering cluster size
+                        $sizeOnDiskGB = [math]::Ceiling(($totalSizeBytes + $clusterSize - 1) / $clusterSize / 1GB)
                         $distroSize = "{0:N2} GB" -f $sizeOnDiskGB
                     } else {
                         $distroSize = "Directory not found"
