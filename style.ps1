@@ -474,7 +474,7 @@ function Get-WSLImageDetails {
                             $distroPath += "\"
                         }
 
-                        # Calculate total size of files in bytes
+                        # Initialize size variables
                         $totalSizeBytes = 0
                         $fileCount = 0
 
@@ -493,7 +493,7 @@ function Get-WSLImageDetails {
                         }
 
                         if ($fileCount -eq 0) {
-                            $distroSize = "No files found"
+                            $distroSize = "No files found or access issue"
                         } else {
                             # Calculate size on disk
                             $clusterSizeBytes = 4096 # Assuming 4KB cluster size
@@ -532,14 +532,6 @@ function New-LocationPath {
     return $path
 }
 
-
-function New-LocationPath {
-    param (
-        [string]$path
-    )
-    # Modify this function if needed for proper location path formatting
-    return $path
-}
 
 
 
