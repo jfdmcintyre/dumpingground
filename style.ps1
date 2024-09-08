@@ -436,7 +436,6 @@ $webViewForm.webView.Source = [Uri]::new("https://yourwebapp.com")
 # Show the form
 $webViewForm.ShowDialog()
 
-
 function Get-WSLImageDetails {
     $details = @{}
 
@@ -481,10 +480,14 @@ function Get-WSLImageDetails {
                     }
 
                     if (Test-Path $distroPath) {
-                        # Calculate disk space used in the directory
-                        $distroSizeBytes = (Get-ChildItem -Recurse -Path $distroPath -ErrorAction Stop | Measure-Object -Property Length -Sum).Sum
-                        $distroSizeGB = $distroSizeBytes / 1GB
-                        $distroSize = "{0:N2} GB" -f $distroSizeGB
+                        # Calculate size on disk
+                        $directory = Get-Item $distroPath
+                        $drive = $directory.PSDrive
+                        $clusterSize = $drive.Used / $drive.Used / 1GB
+                        $sizeOnDiskBytes = (Get-ChildItem -Recurse -Path $distroPath -ErrorAction Stop | 
+                                             Measure-Object -Property Length -Sum).Sum
+                        $sizeOnDiskGB = [math]::Ceiling(($sizeOnDiskBytes / $clusterSize) / 1GB)
+                        $distroSize = "{0:N2} GB" -f $sizeOnDiskGB
                     } else {
                         $distroSize = "Directory not found"
                     }
@@ -515,4 +518,7 @@ function New-LocationPath {
     # Modify this function if needed for proper location path formatting
     return $path
 }
+
+
+
 
