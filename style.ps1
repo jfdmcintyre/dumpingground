@@ -435,3 +435,86 @@ $webViewForm.webView.Source = [Uri]::new("https://yourwebapp.com")
 
 # Show the form
 $webViewForm.ShowDialog()
+
+
+function Get-WSLImageDetails {
+    $details = @{}
+
+    $originalEncoding = [Console]::OutputEncoding
+    [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
+
+    $lxssPath = "Registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss"
+
+    # Get list of all distributions, including the default one
+    $allDistros = wsl --list --verbose | Select-Object -Skip 1 | ForEach-Object {
+        if ($_ -match '^\*?\s*(\S+.*)') {
+            $matches[1].Trim()
+        }
+    }
+
+    # Get list of all running distros. This includes default
+    $runningImages = wsl -l --running | Select-Object -Skip 1 | ForEach-Object {
+        $_.Trim() -replace ' \(Default\)$', ''
+    }
+
+    [Console]::OutputEncoding = $originalEncoding
+
+    if (Test-Path $lxssPath) {
+        Get-ChildItem -Path $lxssPath | ForEach-Object {
+            $distroName = $_.GetValue("DistributionName")
+            $basePath = $_.GetValue("BasePath")
+
+            if ($distroName -and $basePath) {
+                try {
+                    # Convert the base path
+                    $distroPath = Switch ($PSVersionTable.PSEdition) {
+                        "Core" {
+                            $basePath -replace '^\\\\\?\\', ''
+                        }
+                        "Desktop" {
+                            if ($basePath.StartsWith('\\?\')) {
+                                $basePath
+                            } else {
+                                '\\?\' + $basePath
+                            }
+                        }
+                    }
+
+                    if (Test-Path $distroPath) {
+                        # Get the volume information for the directory
+                        $volume = (Get-Item $distroPath).PSDrive
+                        $diskSpace = $volume.Used / 1GB
+                        $totalSize = $volume.Used / 1GB
+
+                        $distroSize = "{0:N2} GB" -f $diskSpace
+                    } else {
+                        $distroSize = "Directory not found"
+                    }
+                } catch {
+                    $distroSize = "Error: $($_.Exception.Message)"
+                }
+
+                $status = if ($runningImages -contains $distroName) { "Running" } else { "Stopped" }
+                $displayName = if ($allDistros -contains "$distroName (Default)") { "$distroName (Default)" } else { $distroName }
+
+                $details[$displayName] = @{
+                    Size = $distroSize
+                    Location = New-LocationPath $basePath
+                    Status = $status
+                }
+            }
+        }
+    }
+
+    [Console]::OutputEncoding = $originalEncoding
+    return $details
+}
+
+function New-LocationPath {
+    param (
+        [string]$path
+    )
+    # Modify this function if needed for proper location path formatting
+    return $path
+}
+
