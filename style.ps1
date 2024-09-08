@@ -480,13 +480,17 @@ function Get-WSLImageDetails {
                     }
 
                     if (Test-Path $distroPath) {
+                        # Get cluster size
+                        $drive = Get-PSDrive -Name (Get-Item $distroPath).PSDrive.Name
+                        $clusterSize = (Get-Item $distroPath).PSDrive.Used / 1GB
+                        
                         # Calculate size on disk
-                        $directory = Get-Item $distroPath
-                        $drive = $directory.PSDrive
-                        $clusterSize = $drive.Used / $drive.Used / 1GB
-                        $sizeOnDiskBytes = (Get-ChildItem -Recurse -Path $distroPath -ErrorAction Stop | 
-                                             Measure-Object -Property Length -Sum).Sum
-                        $sizeOnDiskGB = [math]::Ceiling(($sizeOnDiskBytes / $clusterSize) / 1GB)
+                        $files = Get-ChildItem -Recurse -Path $distroPath -ErrorAction Stop
+                        $totalBytes = 0
+                        foreach ($file in $files) {
+                            $totalBytes += [System.IO.File]::Open($file.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read).Length
+                        }
+                        $sizeOnDiskGB = [math]::Ceiling($totalBytes / 1GB)
                         $distroSize = "{0:N2} GB" -f $sizeOnDiskGB
                     } else {
                         $distroSize = "Directory not found"
@@ -518,6 +522,7 @@ function New-LocationPath {
     # Modify this function if needed for proper location path formatting
     return $path
 }
+
 
 
 
