@@ -481,12 +481,10 @@ function Get-WSLImageDetails {
                     }
 
                     if (Test-Path $distroPath) {
-                        # Get the volume information for the directory
-                        $volume = (Get-Item $distroPath).PSDrive
-                        $diskSpace = $volume.Used / 1GB
-                        $totalSize = $volume.Used / 1GB
-
-                        $distroSize = "{0:N2} GB" -f $diskSpace
+                        # Calculate disk space used in the directory
+                        $distroSizeBytes = (Get-ChildItem -Recurse -Path $distroPath -ErrorAction Stop | Measure-Object -Property Length -Sum).Sum
+                        $distroSizeGB = $distroSizeBytes / 1GB
+                        $distroSize = "{0:N2} GB" -f $distroSizeGB
                     } else {
                         $distroSize = "Directory not found"
                     }
