@@ -396,3 +396,42 @@ $helpMenu.DropDownItems.Add($helpMenuItem)
 # Show the main form
 $mainForm.ShowDialog()
 
+
+
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+# Create a new form
+$webForm = New-Object System.Windows.Forms.Form
+$webForm.Text = "WEnix Help"
+$webForm.Size = New-Object System.Drawing.Size(1000, 700)
+$webForm.StartPosition = "CenterScreen"
+
+# WebView2 integration
+Add-Type -TypeDefinition @"
+using System;
+using System.Windows.Forms;
+using Microsoft.Web.WebView2.WinForms;
+
+public class WebViewForm : Form
+{
+    public WebView2 webView;
+    public WebViewForm()
+    {
+        webView = new WebView2();
+        webView.Dock = DockStyle.Fill;
+        Controls.Add(webView);
+    }
+}
+"@ -ReferencedAssemblies "C:\Program Files (x86)\Microsoft.WebView2\WebView2\Microsoft.Web.WebView2.Core.dll",
+                          "C:\Program Files (x86)\Microsoft.WebView2\WebView2\Microsoft.Web.WebView2.WinForms.dll"
+
+# Create the WebViewForm
+$webViewForm = [WebViewForm]::new()
+$webViewForm.Text = "WEnix Help"
+
+# Load the MkDocs website URL
+$webViewForm.webView.Source = [Uri]::new("https://yourwebapp.com")
+
+# Show the form
+$webViewForm.ShowDialog()
