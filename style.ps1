@@ -465,36 +465,34 @@ function Get-WSLImageDetails {
 
             if ($distroName -and $basePath) {
                 try {
-                    # Convert the base path
-                    $distroPath = Switch ($PSVersionTable.PSEdition) {
-                        "Core" {
-                            $basePath -replace '^\\\\\?\\', ''
-                        }
-                        "Desktop" {
-                            if ($basePath.StartsWith('\\?\')) {
-                                $basePath
-                            } else {
-                                '\\?\' + $basePath
-                            }
-                        }
-                    }
-
+                    # Normalize the base path
+                    $distroPath = [System.IO.Path]::GetFullPath($basePath)
+                    
                     if (Test-Path $distroPath) {
-                        # Calculate size on disk
+                        # Get cluster size in bytes
+                        $driveInfo = [System.IO.DriveInfo]::new([System.IO.Path]::GetPathRoot($distroPath))
+                        $clusterSize = $driveInfo.AvailableFreeSpace / $driveInfo.TotalSize
+
+                        # Calculate total size of files in bytes
                         $totalSizeBytes = 0
-                        $clusterSize = [System.IO.DriveInfo]::new((Get-Item $distroPath).PSDrive.Name).AvailableFreeSpace / [System.IO.DriveInfo]::new((Get-Item $distroPath).PSDrive.Name).TotalSize
-                        
                         Get-ChildItem -Recurse -Path $distroPath -ErrorAction Stop | ForEach-Object {
                             if ($_.PSIsContainer -eq $false) {
-                                $file = [System.IO.File]::Open($_.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read)
-                                $totalSizeBytes += $file.Length
-                                $file.Close()
+                                try {
+                                    $file = [System.IO.File]::Open($_.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read)
+                                    $totalSizeBytes += $file.Length
+                                    $file.Close()
+                                } catch {
+                                    Write-Warning "Failed to read file: $_.FullName"
+                                }
                             }
                         }
 
-                        # Calculate size on disk considering cluster size
-                        $sizeOnDiskGB = [math]::Ceiling(($totalSizeBytes + $clusterSize - 1) / $clusterSize / 1GB)
-                        $distroSize = "{0:N2} GB" -f $sizeOnDiskGB
+                        # Calculate size on disk
+                        $clusterSizeBytes = [math]::Ceiling($clusterSize * 1024 * 1024) # Assuming cluster size in MB
+                        $sizeOnDiskBytes = [math]::Ceiling($totalSizeBytes / $clusterSizeBytes) * $clusterSizeBytes
+                        $sizeOnDiskGB = "{0:N2} GB" -f ($sizeOnDiskBytes / 1GB)
+
+                        $distroSize = $sizeOnDiskGB
                     } else {
                         $distroSize = "Directory not found"
                     }
