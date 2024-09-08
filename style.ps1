@@ -268,3 +268,80 @@ $mainForm.MainMenuStrip = $menuStrip
 
 # Show the main form
 $mainForm.ShowDialog()
+
+
+
+
+
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+# Main form
+$mainForm = New-Object System.Windows.Forms.Form
+$mainForm.Text = "WEnix Companion"
+$mainForm.Size = New-Object System.Drawing.Size(600, 700)
+$mainForm.StartPosition = "CenterScreen"
+$mainForm.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 136)
+$mainForm.Icon = "C:\_WSL2\_SCRIPTS\WEnix.ico"
+
+# Menu strip
+$menuStrip = New-Object System.Windows.Forms.MenuStrip
+$menuStrip.BackColor = [System.Drawing.Color]::FromArgb(0, 130, 116)
+$menuStrip.ForeColor = [System.Drawing.Color]::White
+
+$fileMenu = New-Object System.Windows.Forms.ToolStripMenuItem
+$fileMenu.Text = "File"
+
+$exitMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$exitMenuItem.Text = "Exit"
+$exitMenuItem.Add_Click({ $mainForm.Close() })
+
+$fileMenu.DropDownItems.Add($exitMenuItem)
+
+$helpMenu = New-Object System.Windows.Forms.ToolStripMenuItem
+$helpMenu.Text = "Help"
+
+# Function to open a URL in the default browser
+function Open-URL {
+    param ($url)
+
+    try {
+        # Use Start-Process to open the URL in the default browser
+        Start-Process $url
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show("Unable to open the URL: $url", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error)
+    }
+}
+
+# Add multiple help menu items that link to websites
+$helpTopics = @(
+    @{ Text = "General Help"; URL = "https://www.example.com/general_help" },
+    @{ Text = "WEnix Usage"; URL = "https://www.example.com/wenix_usage" },
+    @{ Text = "VPNKIT Help"; URL = "https://www.example.com/vpnkit_help" }
+)
+
+foreach ($topic in $helpTopics) {
+    $menuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $menuItem.Text = $topic.Text
+    $menuItem.Add_Click({ Open-URL $topic.URL })
+    $helpMenu.DropDownItems.Add($menuItem)
+}
+
+$aboutMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$aboutMenuItem.Text = "About"
+$aboutMenuItem.Add_Click($WEnixinfo)
+
+$helpMenu.DropDownItems.Add($aboutMenuItem)
+
+$menuStrip.Items.Add($fileMenu)
+$menuStrip.Items.Add($helpMenu)
+
+# Add menu strip to form
+$mainForm.Controls.Add($menuStrip)
+$mainForm.MainMenuStrip = $menuStrip
+
+# Create buttons and add other controls as before...
+
+# Show the main form
+$mainForm.ShowDialog()
+
