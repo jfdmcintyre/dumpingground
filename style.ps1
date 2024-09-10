@@ -457,16 +457,6 @@ function Get-WSLImageDetails {
 
     [Console]::OutputEncoding = $originalEncoding
 
-    # Add the GetCompressedFileSize function
-    Add-Type -TypeDefinition @"
-        using System;
-        using System.Runtime.InteropServices;
-        public class Disk {
-            [DllImport("kernel32.dll")]
-            public static extern uint GetCompressedFileSizeW(string lpFileName, out uint lpFileSizeHigh);
-        }
-"@
-
     if (Test-Path $lxssPath) {
         Get-ChildItem -Path $lxssPath | ForEach-Object {
             $distroName = $_.GetValue("DistributionName")
@@ -486,14 +476,10 @@ function Get-WSLImageDetails {
                         }
                     }
                     if (Test-Path $distroDir) {
-                        $totalSize = 0
-                        Get-ChildItem -Recurse -LiteralPath "$distroDir" | ForEach-Object {
-                            $high = 0
-                            $low = [Disk]::GetCompressedFileSizeW($_.FullName, [ref]$high)
-                            $size = ($high -shl 32) -bor $low
-                            $totalSize += $size
-                        }
-                        $distroSize = "{0:N2} GB" -f ($totalSize / 1GB)
+                        $distroSize = Get-ChildItem -Recurse -Force -LiteralPath $distroDir |
+                            Measure-Object -Property Length -Sum |
+                            Select-Object -ExpandProperty Sum
+                        $distroSize = "{0:N2} GB" -f ($distroSize / 1GB)
                     } else {
                         $distroSize = "Directory not found"
                     }
