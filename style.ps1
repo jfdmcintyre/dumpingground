@@ -457,6 +457,16 @@ function Get-WSLImageDetails {
 
     [Console]::OutputEncoding = $originalEncoding
 
+    # Add the GetCompressedFileSize function
+    Add-Type -TypeDefinition @"
+        using System;
+        using System.Runtime.InteropServices;
+        public class Disk {
+            [DllImport("kernel32.dll")]
+            public static extern uint GetCompressedFileSizeW(string lpFileName, out uint lpFileSizeHigh);
+        }
+"@
+
     if (Test-Path $lxssPath) {
         Get-ChildItem -Path $lxssPath | ForEach-Object {
             $distroName = $_.GetValue("DistributionName")
@@ -476,22 +486,32 @@ function Get-WSLImageDetails {
                         }
                     }
                     if (Test-Path $distroDir) {
-                        $distroSize = Get-ChildItem -Recurse -Force -LiteralPath $distroDir |
-                            Measure-Object -Property Length -Sum |
-                            Select-Object -ExpandProperty Sum
-                        $distroSize = "{0:N2} GB" -f ($distroSize / 1GB)
+                        $logicalSize = 0
+                        $sizeOnDisk = 0
+                        Get-ChildItem -Recurse -Force -LiteralPath "$distroDir" | ForEach-Object {
+                            $logicalSize += $_.Length
+                            $high = 0
+                            $low = [Disk]::GetCompressedFileSizeW($_.FullName, [ref]$high)
+                            $compressedSize = ($high -shl 32) -bor $low
+                            $sizeOnDisk += $compressedSize
+                        }
+                        $logicalSizeGB = "{0:N2} GB" -f ($logicalSize / 1GB)
+                        $sizeOnDiskGB = "{0:N2} GB" -f ($sizeOnDisk / 1GB)
                     } else {
-                        $distroSize = "Directory not found"
+                        $logicalSizeGB = "Directory not found"
+                        $sizeOnDiskGB = "Directory not found"
                     }
                 } catch {
-                    $distroSize = "Error: $($_.Exception.Message)"
+                    $logicalSizeGB = "Error: $($_.Exception.Message)"
+                    $sizeOnDiskGB = "Error: $($_.Exception.Message)"
                 }
 
                 $status = if ($runningImages -contains $distroName) { "Running" } else { "Stopped" }
                 $displayName = if ($allDistros -contains "$distroName (Default)") { "$distroName (Default)" } else { $distroName }
 
                 $details[$displayName] = @{
-                    Size = $distroSize
+                    LogicalSize = $logicalSizeGB
+                    SizeOnDisk = $sizeOnDiskGB
                     Location = New-LocationPath $basePath
                     Status = $status
                 }
