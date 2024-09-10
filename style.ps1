@@ -438,101 +438,84 @@ $webViewForm.ShowDialog()
 
 function Get-WSLImageDetails {
     $details = @{}
-
-    # Save the original console encoding and switch to Unicode for WSL output
     $originalEncoding = [Console]::OutputEncoding
     [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
 
-    # Path to WSL registry entries
     $lxssPath = "Registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss"
 
-    # Get list of all WSL distributions
+    # Get list of all distributions, including the default one
     $allDistros = wsl --list --verbose | Select-Object -Skip 1 | ForEach-Object {
         if ($_ -match '^\*?\s*(\S+.*)') {
             $matches[1].Trim()
         }
     }
 
-    # Get list of all running distributions
+    # Get list of all running distros. This includes default
     $runningImages = wsl -l --running | Select-Object -Skip 1 | ForEach-Object {
         $_.Trim() -replace ' \(Default\)$', ''
     }
 
-    [Console]::OutputEncoding = $originalEncoding  # Restore original encoding
+    [Console]::OutputEncoding = $originalEncoding
+
+    # Add the GetCompressedFileSize function
+    Add-Type -TypeDefinition @"
+        using System;
+        using System.Runtime.InteropServices;
+        public class Disk {
+            [DllImport("kernel32.dll")]
+            public static extern uint GetCompressedFileSizeW(string lpFileName, out uint lpFileSizeHigh);
+        }
+"@
 
     if (Test-Path $lxssPath) {
         Get-ChildItem -Path $lxssPath | ForEach-Object {
             $distroName = $_.GetValue("DistributionName")
             $basePath = $_.GetValue("BasePath")
-
             if ($distroName -and $basePath) {
-                Write-Host "Processing distro: $distroName"
-                Write-Host "Base path: $basePath"
-
                 try {
-                    # Normalize and verify the base path
-                    if (-not [System.IO.Path]::IsPathRooted($basePath)) {
-                        $distroPath = [System.IO.Path]::GetFullPath($basePath)
-                    } else {
-                        $distroPath = $basePath
-                    }
-
-                    Write-Host "Distro path: $distroPath"
-
-                    if (Test-Path $distroPath) {
-                        # Calculate size on disk
-                        $totalSizeBytes = 0
-                        $fileCount = 0
-                        Get-ChildItem -Recurse -LiteralPath $distroPath -ErrorAction Stop | ForEach-Object {
-                            if (-not $_.PSIsContainer) {
-                                try {
-                                    $totalSizeBytes += $_.Length
-                                    $fileCount++
-                                } catch {
-                                    Write-Warning "Failed to read file: $($_.FullName)"
-                                }
+                    $distroDir = Switch ($PSVersionTable.PSEdition) {
+                        "Core" {
+                            $basePath -replace '^\\\\\?\\',''
+                        }
+                        "Desktop" {
+                            if ($basePath.StartsWith('\\?\')) {
+                                $basePath
+                            } else {
+                                '\\?\' + $basePath
                             }
                         }
-
-                        if ($fileCount -eq 0) {
-                            $distroSize = "No files found"
-                        } else {
-                            # Assume 4KB cluster size for size-on-disk calculation
-                            $clusterSizeBytes = 4096
-                            $sizeOnDiskBytes = [math]::Ceiling($totalSizeBytes / $clusterSizeBytes) * $clusterSizeBytes
-                            $distroSize = "{0:N2} GB" -f ($sizeOnDiskBytes / 1GB)
+                    }
+                    if (Test-Path $distroDir) {
+                        $totalSize = 0
+                        Get-ChildItem -Recurse -LiteralPath "$distroDir" | ForEach-Object {
+                            $high = 0
+                            $low = [Disk]::GetCompressedFileSizeW($_.FullName, [ref]$high)
+                            $size = ($high -shl 32) -bor $low
+                            $totalSize += $size
                         }
+                        $distroSize = "{0:N2} GB" -f ($totalSize / 1GB)
                     } else {
-                        Write-Host "Distro directory not found: $distroPath"
                         $distroSize = "Directory not found"
                     }
                 } catch {
-                    Write-Host "Error processing $distroName: $($_.Exception.Message)"
                     $distroSize = "Error: $($_.Exception.Message)"
                 }
 
-                # Determine distro status (running/stopped)
                 $status = if ($runningImages -contains $distroName) { "Running" } else { "Stopped" }
                 $displayName = if ($allDistros -contains "$distroName (Default)") { "$distroName (Default)" } else { $distroName }
 
-                # Store details in the result
                 $details[$displayName] = @{
                     Size = $distroSize
-                    Location = $distroPath
+                    Location = New-LocationPath $basePath
                     Status = $status
                 }
-            } else {
-                Write-Host "No distro name or base path found for registry entry."
             }
         }
     }
 
-    [Console]::OutputEncoding = $originalEncoding  # Restore original encoding before returning
+    [Console]::OutputEncoding = $originalEncoding
     return $details
 }
-
-
-s
 
 
 
