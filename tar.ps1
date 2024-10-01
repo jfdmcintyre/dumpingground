@@ -58,3 +58,42 @@ $exportButton.Add_Click({
     }
 })
 $form.Controls.Add($exportButton)
+
+
+
+
+
+
+$exportButton.Add_Click({
+    $selectedImage = $imageComboBox.SelectedItem
+    if ($selectedImage) {
+        $saveFileDialog = New-Object System.Windows.Forms.SaveFileDialog
+        $saveFileDialog.Filter = "Tar.gz Files (*.tar.gz)|*.tar.gz"
+        $saveFileDialog.Title = "Export WSL Image"
+        $saveFileDialog.ShowDialog()
+
+        if ($saveFileDialog.FileName -ne "") {
+            $compressedPath = $saveFileDialog.FileName
+
+            # Export and compress the WSL image
+            $exportProcess = StartProcess -FilePath "wsl.exe" -ArgumentList @("--export", $selectedImage, "-")
+            $compressProcess = StartProcess -FilePath "tar.exe" -ArgumentList @("-czf", $compressedPath, "-")
+
+            # Pipe the output of wsl.exe to tar.exe
+            $exportProcess.StandardOutput.BaseStream.CopyTo($compressProcess.StandardInput.BaseStream)
+            $compressProcess.StandardInput.Close()
+
+            # Wait for both processes to complete
+            $exportProcess.WaitForExit()
+            $compressProcess.WaitForExit()
+
+            if (($exportProcess.ExitCode -eq 0) -and ($compressProcess.ExitCode -eq 0)) {
+                Write-Host "WSL image exported and compressed successfully to: $compressedPath"
+            } else {
+                Write-Host "Export or compression failed. Export exit code: $($exportProcess.ExitCode), Compress exit code: $($compressProcess.ExitCode)"
+            }
+        }
+    } else {
+        [System.Windows.Forms.MessageBox]::Show("Please select a WSL image to export.", "No Image Selected", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
+    }
+})
