@@ -97,3 +97,9 @@ $exportButton.Add_Click({
         [System.Windows.Forms.MessageBox]::Show("Please select a WSL image to export.", "No Image Selected", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning)
     }
 })
+
+
+
+
+$wslProcess = Start-Process -FilePath "wsl.exe" -ArgumentList "--export", $wslDistroName, "-" -NoNewWindow -PassThru -RedirectStandardOutput "NUL"
+$sevenZipProcess = Start-Process -FilePath "C:\Program Files\7-Zip\7z.exe" -ArgumentList "a", "-tgzip", $tarGzFileName, "-si" -NoNewWindow -Wait -PassThru -RedirectStandardInput $wslProcess.StandardOutput -RedirectStandardOutput "NUL"

@@ -782,3 +782,116 @@ function Get-WSLImageDetails {
     [Console]::OutputEncoding = $originalEncoding
     return $details
 }
+
+
+
+
+function Get-WSLImageDetails {
+    $details = @{}
+    $originalEncoding = [Console]::OutputEncoding
+    [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
+
+    $lxssPath = "Registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss"
+
+    # Get list of all distributions, including the default one
+    $allDistros = @(wsl --list --verbose | Select-Object -Skip 1 | ForEach-Object {
+        if ($_ -match '^\*?\s*(\S+.*)') {
+            $matches[1].Trim()
+        }
+    })
+
+    # Get list of all running distros. This includes default
+    $runningImages = @(wsl -l --running | Select-Object -Skip 1 | ForEach-Object {
+        $_.Trim() -replace ' \(Default\)$', ''
+    })
+
+    [Console]::OutputEncoding = $originalEncoding
+
+    if (Test-Path $lxssPath) {
+        Get-ChildItem -Path $lxssPath | ForEach-Object {
+            $distroName = $_.GetValue("DistributionName")
+            $basePath = $_.GetValue("BasePath")
+            if ($distroName -and $basePath) {
+                try {
+                    $distroDir = Switch ($PSVersionTable.PSEdition) {
+                        "Core" {
+                            $basePath -replace '^\\\\\?\\',''
+                        }
+                        "Desktop" {
+                            if ($basePath.StartsWith('\\?\')) {
+                                $basePath
+                            } else {
+                                '\\?\' + $basePath
+                            }
+                        }
+                    }
+
+                    if (Test-Path $distroDir) {
+                        # Calculate logical size
+                        $logicalSize = (Get-ChildItem -Recurse -Force -LiteralPath $distroDir -ErrorAction SilentlyContinue | 
+                            Measure-Object -Property Length -Sum -ErrorAction SilentlyContinue).Sum
+                        if ($null -eq $logicalSize) {
+                            $logicalSize = 0
+                        }
+
+                        # Get size on disk using robocopy
+                        $tempFile = [System.IO.Path]::GetTempFileName()
+
+                        # Capture the robocopy output
+                        robocopy $distroDir NULL /L /XJ /R:0 /W:0 /NDL /NJH /NJS /NC /NS /MT:64 /E /BYTES | Out-File $tempFile
+
+                        $robocopyOutput = Get-Content $tempFile
+                        
+                        # Displaying full robocopy output for debugging
+                        Write-Host "`n--- Full Robocopy Output ---"
+                        $robocopyOutput | ForEach-Object { Write-Host $_ }
+                        Write-Host "--- End of Robocopy Output ---`n"
+
+                        # Try to extract the size in bytes (the largest number in the output)
+                        $sizeOnDisk = 0
+                        foreach ($line in $robocopyOutput) {
+                            # Look for lines containing large numbers (likely to be bytes)
+                            if ($line -match '\s*(\d+)\s.*') {
+                                $possibleSize = [long]$matches[1]
+                                if ($possibleSize -gt $sizeOnDisk) {
+                                    $sizeOnDisk = $possibleSize
+                                }
+                            }
+                        }
+
+                        if ($sizeOnDisk -eq 0) {
+                            Write-Host "Error: Could not parse size from robocopy output."
+                        } else {
+                            Write-Host "Parsed Size: $sizeOnDisk bytes"
+                        }
+
+                        Remove-Item $tempFile -Force
+
+                        $logicalSizeGB = "{0:N2} GB" -f ($logicalSize / 1GB)
+                        $sizeOnDiskGB = "{0:N2} GB" -f ($sizeOnDisk / 1GB)
+                    } else {
+                        Write-Host "Directory not found: $distroDir"
+                        $logicalSizeGB = "Directory not found"
+                        $sizeOnDiskGB = "Directory not found"
+                    }
+                } catch {
+                    Write-Host "Error: $($_.Exception.Message)"
+                    $logicalSizeGB = "Error: $($_.Exception.Message)"
+                    $sizeOnDiskGB = "Error: $($_.Exception.Message)"
+                }
+
+                $status = if ($runningImages -contains $distroName) { "Running" } else { "Stopped" }
+                $displayName = if ($allDistros -contains "$distroName (Default)") { "$distroName (Default)" } else { $distroName }
+
+                $details[$displayName] = @{
+                    Size = $sizeOnDiskGB
+                    Location = New-LocationPath $basePath
+                    Status = $status
+                }
+            }
+        }
+    }
+
+    [Console]::OutputEncoding = $originalEncoding
+    return $details
+}
