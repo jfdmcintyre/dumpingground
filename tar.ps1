@@ -103,3 +103,55 @@ $exportButton.Add_Click({
 
 $wslProcess = Start-Process -FilePath "wsl.exe" -ArgumentList "--export", $wslDistroName, "-" -NoNewWindow -PassThru -RedirectStandardOutput "NUL"
 $sevenZipProcess = Start-Process -FilePath "C:\Program Files\7-Zip\7z.exe" -ArgumentList "a", "-tgzip", $tarGzFileName, "-si" -NoNewWindow -Wait -PassThru -RedirectStandardInput $wslProcess.StandardOutput -RedirectStandardOutput "NUL"
+
+
+function StartProcess {
+    param (
+        [string]$FilePath,
+        [string[]]$ArgumentList
+    )
+
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $FilePath
+    $psi.Arguments = $ArgumentList
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $psi
+    $process.EnableRaisingEvents = $true
+
+    $outputRichTextBox.Clear()
+
+    $stdOutEvent = Register-ObjectEvent -InputObject $process -EventName OutputDataReceived -Action {
+        if (![string]::IsNullOrEmpty($EventArgs.Data)) {
+            $outputRichTextBox.Invoke([Action]{
+                $outputRichTextBox.AppendText($EventArgs.Data + "`r`n")
+                $outputRichTextBox.ScrollToCaret()
+            })
+        }
+    }
+
+    $stdErrEvent = Register-ObjectEvent -InputObject $process -EventName ErrorDataReceived -Action {
+        if (![string]::IsNullOrEmpty($EventArgs.Data)) {
+            $outputRichTextBox.Invoke([Action]{
+                $outputRichTextBox.SelectionColor = [System.Drawing.Color]::Red
+                $outputRichTextBox.AppendText($EventArgs.Data + "`r`n")
+                $outputRichTextBox.SelectionColor = $outputRichTextBox.ForeColor
+                $outputRichTextBox.ScrollToCaret()
+            })
+        }
+    }
+
+    $process.Start() | Out-Null
+    $process.BeginOutputReadLine()
+    $process.BeginErrorReadLine()
+    $process.WaitForExit()
+
+    Unregister-Event -SourceIdentifier $stdOutEvent.Name
+    Unregister-Event -SourceIdentifier $stdErrEvent.Name
+
+    return $process
+}
