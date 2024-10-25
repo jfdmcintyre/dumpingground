@@ -180,56 +180,24 @@ $action9 = {
 $centerX = ($mainForm.ClientSize.Width - 340) / 2
 $startY = 50
  
-# 9 buttons with specified images, separated into 3 categories\
-
-###################################################################################################################
-
-function Update-VPNKITButton {
-  $runningDistros = wsl -l --running
-  $vpnkitButton = $buttons | Where-Object { $_.Text -eq "Start VPNKIT" }
-  
-  if ($vpnkitButton) {
-      if ($runningDistros -match "wsl-vpnkit" -and $runningDistros -notmatch "\n") {
-          $vpnkitButton.Image = [System.Drawing.Image]::FromFile((Join-Path $PSScriptRoot "icons\Leash-vpnkit.ico"))
-      } else {
-          $vpnkitButton.Image = [System.Drawing.Image]::FromFile((Join-Path $PSScriptRoot "icons\Leash-vpnkit-sad.png"))
-      }
-      $vpnkitButton.Refresh()
-  }
-}
-
-$timer = New-Object System.Windows.Forms.Timer
-$timer.Interval = 5000 # Check every 5 seconds
-$timer.Add_Tick({ Update-VPNKITButton })
-$timer.Start()
-
-
-###########################################################################################################################
-
-
+# 9 buttons with specified images, separated into 3 categories
 
 $buttons = @(
-    # Category 1
-    (New-Button ($centerX + 0) ($startY + 50) "Start WEnix" "icons/WEnix.ico" $action1 "This Will start WEnix.`n If you have 2 or more installed, select from the list"),
-    (New-Button ($centerX + 120) ($startY + 50) "Stop WEnix" "icons/WEnix_stop.ico" $action2 "This will close all WEnix WSL services"),
-    (New-Button ($centerX + 240) ($startY + 50) "Start VPNKIT" (if ($runningDistros -match "wsl-vpnkit" -and $runningDistros -notmatch "\n") { "icons\Leash-vpnkit.ico" } else { "icons\Leash-vpnkit-sad.png" }) $action3 "This will turn on if you WEnix gets a NetWork Error on startup`n or no internet connection."),
+  # Category 1
+  (New-Button ($centerX + 0) ($startY + 50) "Start WEnix" "icons/WEnix.ico" $action1 "This Will start WEnix.`n If you have 2 or more installed, select from the list"),
+  (New-Button ($centerX + 120) ($startY + 50) "Stop WEnix" "icons/WEnix_stop.ico" $action2 "This will close all WEnix WSL services")
+ 
 
-    # Category 2
-    (New-Button ($centerX + 60) ($startY + 220) "WEnix Website" "icons/About_the_App.ico" $action8 "Click here to access WEnix Pages Site`n For tips, walkthroughs, News & more!"),
-    (New-Button ($centerX + 180) ($startY + 220) "Image Status" "icons/Launch_Website.ico" $action9 "Whoosh Toolbox will help you with WEnix Image tools:`n install, remove, password reset & more!")
-)
-
-$backgroundJob = Start-Job -ScriptBlock {
-  while ($true) {
-      $runningDistros = wsl -l --running
-      if ($runningDistros -match "wsl-vpnkit" -and $runningDistros -notmatch "\n") {
-          $Global:VPNKITStatus = "Running"
-      } else {
-          $Global:VPNKITStatus = "Stopped"
-      }
-      Start-Sleep -Seconds 5
+  if ($runningDistros -match "wsl-vpnkit" -and $runningDistros -notmatch "\n"){
+  (New-Button ($centerX + 240) ($startY + 50) "Start VPNKIT" "icons/Leash-vpnkit.ico" $action3 "This will turn on if you WEnix gets a NetWork Error on startup`n or no internet conneciton.")
+  } else {
+  (New-Button ($centerX + 240) ($startY + 50) "Start VPNKIT" "icons/Leash-vpnkit-sad.png" $action3 "This will turn on if you WEnix gets a NetWork Error on startup`n or no internet conneciton.")
   }
-}
+
+  # Category 2
+  (New-Button ($centerX + 60) ($startY + 220) "WEnix Website" "icons/About_the_App.ico" $action8 "Click here to access WEnix Pages Site`n For tips, walkthroughs, News & more!"),
+  (New-Button ($centerX + 180) ($startY + 220) "Image Status" "icons/Launch_Website.ico" $action9 "Whoosh Toolbox will help you with WEnix Image tools:`n install, remove, password reset & more!")
+)
 
 
 
@@ -268,11 +236,5 @@ foreach ($title in $titles) {
 foreach ($label in $categoryLabels) {
   $mainForm.Controls.Add($label)
 }
-
-$mainform.Add_FormClosing({
-  Stop-Job -Job $backgroundJob
-  Remove-Job -Job $backgroundJob
-})
-
  # Show the main form
 $mainForm.ShowDialog()

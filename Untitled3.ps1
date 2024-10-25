@@ -1,44 +1,50 @@
-﻿Add-Type -AssemblyName System.Windows.Forms
+﻿# Load necessary assemblies
+Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-# Create the main form
-$form = New-Object System.Windows.Forms.Form
-$form.Text = "Auto-Refresh Image Form"
-$form.Size = New-Object System.Drawing.Size(400, 300)
+# Create main form
+$mainForm = New-Object System.Windows.Forms.Form
+$mainForm.Text = "WSL VPN Status"
+$mainForm.Size = New-Object System.Drawing.Size(300, 150)
+$mainForm.StartPosition = "CenterScreen"
 
-# Create a PictureBox to hold the image
-$pictureBox = New-Object System.Windows.Forms.PictureBox
-$pictureBox.SizeMode = [System.Windows.Forms.PictureBoxSizeMode]::StretchImage
-$pictureBox.Size = New-Object System.Drawing.Size(200, 200)
-$pictureBox.Location = New-Object System.Drawing.Point(100, 50)
-$form.Controls.Add($pictureBox)
+# Create label to display VPN status
+$statusLabel = New-Object System.Windows.Forms.Label
+$statusLabel.Size = New-Object System.Drawing.Size(250, 50)
+$statusLabel.Location = New-Object System.Drawing.Point(25, 30)
+$statusLabel.Font = New-Object System.Drawing.Font("Arial", 16)
+$statusLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+$mainForm.Controls.Add($statusLabel)
 
-# Array of images to toggle between for demonstration purposes
-$images = @("C:\Users\shlum\dumpingground\messenger.png", "C:\Users\shlum\dumpingground\square.png")
-$currentImageIndex = 0
+# Function to check running WSL images and update status
+function Update-VPNStatus {
+    $originalEncoding = [Console]::OutputEncoding
+  [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
+  $wslOutput = wsl --list --running
+  [Console]::OutputEncoding = $originalEncoding
+  $runningDistros = ($wslOutput -split "`n" )
+    # Get the list of running WSL distributions
+   
 
-# Timer to refresh the image every 5 seconds
-$timer = New-Object System.Windows.Forms.Timer
-$timer.Interval = 5000  # 5 seconds
-
-# Timer tick event to update the image
-$timer.Add_Tick({
-    # Toggle between the images
-    $currentImageIndex = ($currentImageIndex + 1) % $images.Length
-    $newImagePath = $images[$currentImageIndex]
-
-    # Load the new image and set it to the PictureBox
-    # Dispose of the current image if it exists
-    if ($pictureBox.Image -ne $null) {
-        $pictureBox.Image.Dispose()
+    # Check if 'wsl-vpnkit' is runnings
+    if ($runningDistros -match "wsl-vpnkit") {
+        $statusLabel.Text = "VPN ON"
+    } elseif ($runningDistros.Count -gt 0) {
+        $statusLabel.Text = "VPN OFF"
+    } else {
+        $statusLabel.Text = "No WSL Images Running"
     }
+}
 
-    # Create a new instance of the image
-    $pictureBox.Image = [System.Drawing.Image]::FromFile($newImagePath)
-})
-
-# Start the timer
+# Create a timer to refresh status every 5 seconds
+$timer = New-Object System.Windows.Forms.Timer
+$timer.Interval = 5000 # 5000 milliseconds = 5 seconds
+$timer.Add_Tick({ Update-VPNStatus })
 $timer.Start()
 
-# Show the form
-[void]$form.ShowDialog()
+# Initial status check
+Update-VPNStatus
+
+# Show the main form
+$mainForm.Add_Shown({ $mainForm.Activate() })
+[void]$mainForm.ShowDialog()

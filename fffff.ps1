@@ -14,7 +14,7 @@ $pictureBox.Location = New-Object System.Drawing.Point(100, 50)
 $form.Controls.Add($pictureBox)
 
 # Array of images to toggle between for demonstration purposes
-$images = @("C:\Users\shlum\Downloads\square.png", "C:\Users\shlum\Downloads\messenger.png")
+$images = @("C:\Users\shlum\dumpingground\square.png", "C:\Users\shlum\dumpingground\messenger.png")
 $currentImageIndex = 0
 
 # Timer to refresh the image every 5 seconds
@@ -26,6 +26,11 @@ $timer.Add_Tick({
     # Toggle between the images
     $currentImageIndex = ($currentImageIndex + 1) % $images.Length
     $newImagePath = $images[$currentImageIndex]
+
+    # Dispose of the current image if it exists
+    if ($pictureBox.Image -ne $null) {
+        $pictureBox.Image.Dispose()
+    }
 
     # Load the new image and set it to the PictureBox
     $pictureBox.Image = [System.Drawing.Image]::FromFile($newImagePath)
