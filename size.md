@@ -47,14 +47,18 @@ function Get-WSLDistroSizes {
         return $distros
     }
     
+    # Get default distro GUID
+    $defaultGuid = (Get-ItemProperty -Path $wslRegPath -Name DefaultDistribution -ErrorAction SilentlyContinue).DefaultDistribution
+    
     $distroGuids = Get-ChildItem -Path $wslRegPath | Where-Object { $_.PSChildName -match '^{[A-F0-9-]+}$' }
     
     foreach ($guidKey in $distroGuids) {
         try {
             $distroName = (Get-ItemProperty -Path $guidKey.PSPath -Name DistributionName -ErrorAction SilentlyContinue).DistributionName
             $basePath = (Get-ItemProperty -Path $guidKey.PSPath -Name BasePath -ErrorAction SilentlyContinue).BasePath
+            $isDefault = ($guidKey.PSChildName -eq $defaultGuid)
             
-            if ($distroName -and $basePath) {
+            if ($basePath) {
                 $vhdxPath = Join-Path $basePath "ext4.vhdx"
                 
                 if (Test-Path $vhdxPath) {
@@ -63,10 +67,11 @@ function Get-WSLDistroSizes {
                     $physicalSize = [DiskSize]::GetSizeOnDisk($vhdxFile.FullName)
                     
                     $distros += [PSCustomObject]@{
-                        Distro       = $distroName
+                        Name         = if ($distroName) { $distroName } else { "Unknown" }
+                        IsDefault    = $isDefault
                         LogicalSize  = $logicalSize
                         PhysicalSize = $physicalSize
-                        Path         = $vhdxFile.FullName
+                        Location     = $vhdxFile.FullName
                     }
                 }
             }
@@ -81,7 +86,7 @@ function Get-WSLDistroSizes {
 # Create the form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "WSL Distro Sizes"
-$form.Size = New-Object System.Drawing.Size(800, 400)
+$form.Size = New-Object System.Drawing.Size(900, 300)
 $form.StartPosition = "CenterScreen"
 
 # Create ListView
@@ -90,43 +95,33 @@ $listView.View = [System.Windows.Forms.View]::Details
 $listView.FullRowSelect = $true
 $listView.GridLines = $true
 $listView.Location = New-Object System.Drawing.Point(10, 10)
-$listView.Size = New-Object System.Drawing.Size(760, 340)
+$listView.Size = New-Object System.Drawing.Size(860, 240)
 $listView.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor 
                    [System.Windows.Forms.AnchorStyles]::Bottom -bor
                    [System.Windows.Forms.AnchorStyles]::Left -bor
                    [System.Windows.Forms.AnchorStyles]::Right
 
+# Set font to support Unicode
+$listView.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+
 # Add columns
-[void]$listView.Columns.Add("Distro", 120)
-[void]$listView.Columns.Add("Size (Logical / On Disk)", 180)
-[void]$listView.Columns.Add("Efficiency", 80)
-[void]$listView.Columns.Add("Path", 350)
+[void]$listView.Columns.Add("Image Name", 150)
+[void]$listView.Columns.Add("Default", 70)
+[void]$listView.Columns.Add("Size / Size on Disk", 180)
+[void]$listView.Columns.Add("Location", 430)
 
 # Get distros and populate list
 $distros = Get-WSLDistroSizes
 
 foreach ($distro in $distros) {
-    $item = New-Object System.Windows.Forms.ListViewItem($distro.Distro)
-    
     $logicalFormatted = Format-Bytes $distro.LogicalSize
     $physicalFormatted = Format-Bytes $distro.PhysicalSize
-    $sizeText = "{0} / {1}" -f $logicalFormatted, $physicalFormatted
-    [void]$item.SubItems.Add($sizeText)
+    $combinedSize = "{0} / {1}" -f $logicalFormatted, $physicalFormatted
     
-    $efficiency = if ($distro.LogicalSize -gt 0) {
-        [Math]::Round((1 - ($distro.PhysicalSize / $distro.LogicalSize)) * 100, 1)
-    } else { 0 }
-    [void]$item.SubItems.Add("$efficiency%")
-    [void]$item.SubItems.Add($distro.Path)
-    
-    # Color code based on efficiency
-    if ($efficiency -gt 50) {
-        $item.BackColor = [System.Drawing.Color]::LightGreen
-    } elseif ($efficiency -gt 20) {
-        $item.BackColor = [System.Drawing.Color]::LightYellow
-    } elseif ($efficiency -gt 0) {
-        $item.BackColor = [System.Drawing.Color]::LightCoral
-    }
+    $item = New-Object System.Windows.Forms.ListViewItem($distro.Name)
+    [void]$item.SubItems.Add($(if ($distro.IsDefault) { "★" } else { "" }))
+    [void]$item.SubItems.Add($combinedSize)
+    [void]$item.SubItems.Add($distro.Location)
     
     [void]$listView.Items.Add($item)
 }
