@@ -119,7 +119,7 @@ foreach ($distro in $distros) {
     $combinedSize = "{0} / {1}" -f $logicalFormatted, $physicalFormatted
     
     $item = New-Object System.Windows.Forms.ListViewItem($distro.Name)
-    [void]$item.SubItems.Add($(if ($distro.IsDefault) { "★" } else { "" }))
+    [void]$item.SubItems.Add($(if ($distro.IsDefault) { "\u2605" } else { "" }))
     [void]$item.SubItems.Add($combinedSize)
     [void]$item.SubItems.Add($distro.Location)
     
